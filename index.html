@@ -731,7 +731,7 @@
       windowState.employees.forEach(emp => {
         if (emp.status !== '離職' && emp.healthCheckStatus !== '🔴 體檢已過期') {
           const key = `${windowState.scheduleYear}-${windowState.scheduleMonth}-${emp.name}`;
-          windowState.schedules[key] = days.map(m => (m.holidayName || m.isWeekend ? '休假' : '上班'));
+          windowState.schedules[key] = days.map(m => (m.isWeekend || m.isHoliday ? '休假' : '上班'));
         }
       });
       saveStateToCloud();
