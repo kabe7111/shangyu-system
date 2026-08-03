@@ -28,6 +28,14 @@
       }
       .no-print { display: none !important; }
     }
+    .shift-select {
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+      text-align: center;
+      text-align-last: center;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body class="bg-slate-100 min-h-screen font-sans text-slate-800">
@@ -512,7 +520,7 @@
 
     window.openCreateTaskModal = (dateStr) => {
       const targetDate = dateStr || windowState.selectedTaskDate || todayStr;
-      windowState.modalData = { date: targetDate, title: '', category: '調理包製作', repeat: '單次', assignees: [windowState.employees.filter(e => e.status !== '離職')[0]?.name || '王聖銓'], startTime: '09:00', endTime: '12:00', location: '台北總店', content: '' };
+      windowState.modalData = { date: targetDate, title: '', category: '調理包製作', repeat: '單次', assignees: [windowState.employees.filter(e => e.status !== '離職')[0]?.name || '王聖銓'], startTime: '09:00', endTime: '12:00', location: '台北總店', content: '', checklist: [] };
       windowState.activeModal = 'taskModal';
       render();
     };
@@ -526,18 +534,40 @@
       }
     };
 
+    // 透過暫存現有表單欄位內容，避免點擊時畫面清空
+    window.syncModalDataFromInputs = () => {
+      const titleEl = document.getElementById('task-title');
+      const catEl = document.getElementById('task-category');
+      const repEl = document.getElementById('task-repeat');
+      const dateEl = document.getElementById('task-date');
+      const startEl = document.getElementById('task-start');
+      const endEl = document.getElementById('task-end');
+      const locEl = document.getElementById('task-location');
+      const contentEl = document.getElementById('task-content');
+
+      if (titleEl) windowState.modalData.title = titleEl.value;
+      if (catEl) windowState.modalData.category = catEl.value;
+      if (repEl) windowState.modalData.repeat = repEl.value;
+      if (dateEl) windowState.modalData.date = dateEl.value;
+      if (startEl) windowState.modalData.startTime = startEl.value;
+      if (endEl) windowState.modalData.endTime = endEl.value;
+      if (locEl) windowState.modalData.location = locEl.value;
+      if (contentEl) windowState.modalData.content = contentEl.value;
+    };
+
     window.addModalChecklistItem = () => {
+      window.syncModalDataFromInputs();
       const input = document.getElementById('new-chk-item-input');
       const val = input ? input.value.trim() : '';
       if (val) {
         if (!windowState.modalData.checklist) windowState.modalData.checklist = [];
         windowState.modalData.checklist.push({ item: val, checked: false });
-        input.value = '';
         render();
       }
     };
 
     window.removeModalChecklistItem = (idx) => {
+      window.syncModalDataFromInputs();
       if (windowState.modalData.checklist) {
         windowState.modalData.checklist.splice(idx, 1);
         render();
@@ -562,6 +592,7 @@
     };
 
     window.toggleAssigneeInModal = (name) => {
+      window.syncModalDataFromInputs();
       const list = windowState.modalData.assignees || [];
       if (list.includes(name)) {
         if (list.length > 1) windowState.modalData.assignees = list.filter(a => a !== name);
@@ -722,7 +753,6 @@
       showToast('✅ 成功發布新公告！');
     };
 
-    // 排班表改為下拉式選單變更時直接儲存
     window.handleShiftSelectChange = (empName, dayIdx, selectElement) => {
       if (!windowState.isAdmin) {
         alert('🔒 請先解鎖管理員權限才能修改班表！');
@@ -1538,7 +1568,7 @@
         <div class="bg-white p-4 rounded-2xl border space-y-4 shadow-xs">
           <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-2 border-b pb-3">
             <div class="flex items-center space-x-2">
-              <h2 class="font-extrabold text-slate-900 text-base">📅 全月排班表 (點擊儲存格即可用下拉選單快速更改班別)</h2>
+              <h2 class="font-extrabold text-slate-900 text-base">📅 全月排班表 (點擊儲存格即可直接點選更換班別)</h2>
               <div class="flex items-center space-x-1 bg-slate-100 p-1 rounded-xl">
                 <button onclick="jumpToCurrentMonth()" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-xs cursor-pointer">📍 今天</button>
                 <button onclick="shiftMonth(-1)" class="px-2.5 py-1 bg-white rounded-lg text-xs font-bold shadow-xs cursor-pointer">‹ 上個月</button>
@@ -1563,7 +1593,7 @@
                   <th class="p-2 bg-amber-50 border-r w-24 font-bold">已排休天數</th>
                   <th class="p-2 bg-emerald-50 border-r w-24 font-bold">剩餘未排天數</th>
                   ${days.map(m => `
-                    <th class="p-1.5 text-center border-r min-w-[52px] ${m.isWeekend || m.isHoliday ? 'bg-rose-50/50 text-rose-700 font-bold' : ''}">
+                    <th class="p-1.5 text-center border-r min-w-[56px] ${m.isWeekend || m.isHoliday ? 'bg-rose-50/50 text-rose-700 font-bold' : ''}">
                       <div>${windowState.scheduleMonth}/${m.day}</div>
                       <div class="text-[10px] ${m.isWeekend || m.isHoliday ? 'text-rose-600 font-black' : 'text-slate-500 font-bold'}">${m.weekDay}</div>
                       ${m.holidayName ? `<div class="text-[9px] bg-rose-600 text-white px-0.5 rounded font-black mt-0.5">${m.holidayName}</div>` : ''}
@@ -1590,10 +1620,11 @@
                         const shiftVal = empSched.shifts[dIdx] || (m.isWeekend || m.isHoliday ? '休假' : '上班');
                         const cfg = shiftTypesConfig().find(s => s.type === shiftVal) || shiftTypesConfig()[0];
                         return `
-                          <td class="p-1 text-center border-r ${m.isWeekend || m.isHoliday ? 'bg-rose-50/20' : ''}">
+                          <td class="p-1.5 text-center border-r ${m.isWeekend || m.isHoliday ? 'bg-rose-50/20' : ''}">
                             <select
                               onchange="handleShiftSelectChange('${empSched.empName}', ${dIdx}, this)"
-                              class="w-full py-1.5 px-0.5 rounded text-[10px] border cursor-pointer font-bold ${cfg.color}"
+                              class="shift-select w-full py-2 px-1 rounded-lg border text-[11px] font-bold shadow-xs transition-all ${cfg.color}"
+                              title="點擊切換班別"
                             >
                               ${shiftOptionsList.map(opt => `<option value="${opt}" ${shiftVal === opt ? 'selected' : ''}>${opt}</option>`).join('')}
                             </select>
