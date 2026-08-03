@@ -127,12 +127,11 @@
       modalData: {}
     };
 
-    // 計算體檢狀態的輔助函式 (有效期限為 1 年 / 365 天)
     function getHealthCheckInfo(checkDateStr) {
       if (!checkDateStr) return { status: '🔴 尚未建檔', isExpired: true, daysLeft: -999 };
       const checkDate = new Date(checkDateStr);
       const expireDate = new Date(checkDate);
-      expireDate.setFullYear(expireDate.getFullYear() + 1); // 滿一年到期
+      expireDate.setFullYear(expireDate.getFullYear() + 1);
 
       const today = new Date();
       today.setHours(0,0,0,0);
@@ -647,7 +646,7 @@
     };
 
     window.openEditEvalModal = (empName) => {
-      const customEval = windowState.evaluations[empName] || { efficiencyScore: 5, tripCoopScore: 5, sanitationScore: 5, knowledgeScore: 5, comment: '' };
+      const customEval = windowState.evaluations[empName] || { efficiencyScore: 3, tripCoopScore: 3, sanitationScore: 3, knowledgeScore: 3, comment: '' };
       windowState.modalData = { name: empName, ...customEval };
       windowState.activeModal = 'evalModal';
       render();
@@ -682,8 +681,8 @@
         const lateCount = empClocks.filter(c => c.status.includes('遲到')).length;
 
         const customEval = windowState.evaluations[emp.name] || {
-          efficiencyScore: 5, tripCoopScore: 5, sanitationScore: 5, knowledgeScore: 5,
-          comment: '工作表現優異。'
+          efficiencyScore: 3, tripCoopScore: 3, sanitationScore: 3, knowledgeScore: 3,
+          comment: '工作表現正常。'
         };
 
         const calculatedScore = Math.min(100, Math.max(0,
@@ -746,6 +745,7 @@
       saveStateToCloud();
     };
 
+    // 點擊完成任務與「自動循環重複生成下期任務」邏輯
     window.initiateCompleteTask = (id) => {
       const task = windowState.tasks.find(t => t.id === id);
       if (task) {
@@ -757,8 +757,54 @@
         } else {
           task.status = '已完成';
           task.completedBy = windowState.currentUser.name;
+
+          // 若有設定循環重複（非單次），自動生成下一個周期的任務
+          if (task.repeat && task.repeat !== '單次') {
+            const currDate = new Date(task.date);
+            if (task.repeat === '每日') {
+              currDate.setDate(currDate.getDate() + 1);
+            } else if (task.repeat === '每週') {
+              currDate.setDate(currDate.getDate() + 7);
+            } else if (task.repeat === '每月') {
+              currDate.setMonth(currDate.getMonth() + 1);
+            } else if (task.repeat === '每兩個月') {
+              currDate.setMonth(currDate.getMonth() + 2);
+            } else if (task.repeat === '每三個月') {
+              currDate.setMonth(currDate.getMonth() + 3);
+            } else if (task.repeat === '每半年') {
+              currDate.setMonth(currDate.getMonth() + 6);
+            } else if (task.repeat === '每年') {
+              currDate.setFullYear(currDate.getFullYear() + 1);
+            }
+
+            const nextDateStr = currDate.toISOString().slice(0, 10);
+            const duplicatedChecklist = (task.checklist || []).map(c => ({ ...c, checked: false }));
+
+            // 檢查是否已存在相同日期的相同重複任務避免重複洗版
+            const exists = windowState.tasks.some(t => t.title === task.title && t.date === nextDateStr);
+            if (!exists) {
+              windowState.tasks.unshift({
+                id: Date.now(),
+                title: task.title,
+                category: task.category,
+                repeat: task.repeat,
+                content: task.content,
+                date: nextDateStr,
+                startTime: task.startTime,
+                endTime: task.endTime,
+                location: task.location,
+                assignees: [...task.assignees],
+                checklist: duplicatedChecklist,
+                status: '待處理',
+                completedBy: ''
+              });
+              showToast(`🔁 任務已完成，並自動幫您生成下一週期 (${nextDateStr}) 的新任務！`);
+            }
+          } else {
+            showToast(`✅ 【${windowState.currentUser.name}】已完成任務！考核自動加分！`);
+          }
+
           saveStateToCloud();
-          showToast(`✅ 【${windowState.currentUser.name}】已完成任務！考核自動加分！`);
         }
       }
     };
@@ -833,7 +879,7 @@
 
     window.printSingleEmployeeEval = (empName) => {
       const emp = windowState.employees.find(e => e.name === empName);
-      const customEval = windowState.evaluations[empName] || { efficiencyScore: 5, tripCoopScore: 5, sanitationScore: 5, knowledgeScore: 5, comment: '工作表現優異。' };
+      const customEval = windowState.evaluations[empName] || { efficiencyScore: 3, tripCoopScore: 3, sanitationScore: 3, knowledgeScore: 3, comment: '工作表現正常。' };
       const score = 70 + (customEval.efficiencyScore * 2) + (customEval.tripCoopScore * 2) + (customEval.sanitationScore * 2) + (customEval.knowledgeScore * 2);
 
       const printArea = document.getElementById('print-modal-area');
@@ -1587,7 +1633,7 @@
                   <span class="text-slate-400 block text-[10px]">打卡身分：</span>
                   <strong class="text-sm font-extrabold text-amber-300">${windowState.currentUser.name} (${windowState.currentUser.role})</strong>
                 </div>
-                <span class="text-xs bg-emerald-500/20 text-emerald-300 px-2.5 py-1 rounded-lg border border-emerald-500/40 font-bold">🟢 雲端連線中</span>
+                <span class="text-xs bg-emerald-500/20 text-emerald-300 px-2.5 py-1 rounded-xl border border-emerald-500/40 font-bold">🟢 雲端連線中</span>
               </div>
 
               ${windowState.clockMode === 'businessTrip' ? `
@@ -1770,15 +1816,15 @@
         const lateCount = empClocks.filter(c => c.status.includes('遲到')).length;
 
         const customEval = windowState.evaluations[emp.name] || {
-          efficiencyScore: 5, tripCoopScore: 5, sanitationScore: 5, knowledgeScore: 5,
-          comment: '工作熱情，門市服務顧客滿意度高，維護優秀清潔與餐點品質。'
+          efficiencyScore: 3, tripCoopScore: 3, sanitationScore: 3, knowledgeScore: 3,
+          comment: '工作表現正常。'
         };
 
         const baseScore = 70;
-        const eff = customEval.efficiencyScore || 5;
-        const trip = customEval.tripCoopScore || 5;
-        const san = customEval.sanitationScore || 5;
-        const knw = customEval.knowledgeScore || 5;
+        const eff = customEval.efficiencyScore || 3;
+        const trip = customEval.tripCoopScore || 3;
+        const san = customEval.sanitationScore || 3;
+        const knw = customEval.knowledgeScore || 3;
 
         const calculatedScore = Math.min(100, Math.max(0,
           baseScore + (eff * 2) + (trip * 2) + (san * 2) + (knw * 2) + (completedTaskCount * 2) - (lateCount * 5) - (uncompletedTaskCount * 3)
@@ -1796,7 +1842,7 @@
         <div class="space-y-4">
           <div class="bg-white p-4 rounded-2xl border flex flex-col sm:flex-row justify-between items-center gap-3 shadow-xs">
             <div>
-              <h2 class="font-extrabold text-slate-900 text-base">🏅 門市員工當月績效考核表 (${windowState.scheduleYear}年${windowState.scheduleMonth}月)</h2>
+              <h2 class="font-extrabold text-slate-900 text-base">🏅 門市員工當月績效考核表 (70分基準起算) (${windowState.scheduleYear}年${windowState.scheduleMonth}月)</h2>
               <p class="text-xs text-slate-500">提示：點擊右側按鈕可將本月考核成績封存入庫，供「年度考核彙整」查閱</p>
             </div>
             <div class="flex items-center space-x-2">
@@ -1972,7 +2018,7 @@
                   </select>
                 </div>
                 <div>
-                  <label class="block text-purple-900 font-bold mb-1">🔁 循環重複選項</label>
+                  <label class="block text-purple-900 font-bold mb-1">🔁 循環重複選項 (完成後自動生成)</label>
                   <select id="task-repeat" class="w-full p-2 border border-purple-300 bg-purple-50 rounded-xl font-bold">
                     ${repeatOptions.map(r => `<option value="${r}" ${m.repeat === r ? 'selected' : ''}>${r}</option>`).join('')}
                   </select>
