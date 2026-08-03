@@ -141,7 +141,6 @@
       }, 3500);
     }
 
-    // 強效雙向即時雲端同步 (使用強制快取繞過機制)
     function initFirebaseSync() {
       if (!db) {
         render();
@@ -149,8 +148,6 @@
       }
       try {
         const docRef = doc(db, 'system', 'mainData');
-        
-        // 進入網頁時立刻強制讀取一次最新雲端資料
         getDoc(docRef).then((docSnap) => {
           if (docSnap.exists()) {
             applyCloudData(docSnap.data());
@@ -159,7 +156,6 @@
           }
         }).catch(() => {});
 
-        // 即時監聽雲端變動
         onSnapshot(docRef, (docSnap) => {
           if (docSnap.exists()) {
             applyCloudData(docSnap.data());
@@ -495,6 +491,17 @@
       saveStateToCloud();
       showToast('🗑️ 行程已刪除！');
       render();
+    };
+
+    // 刪除公告功能
+    window.deleteAnnouncement = (annId) => {
+      if (!windowState.isAdmin) return showToast('🔒 請先解鎖管理員權限才能刪除公告！', 'warning');
+      if (confirm('確定要刪除這則公告嗎？')) {
+        windowState.announcements = windowState.announcements.filter(a => a.id !== annId);
+        saveStateToCloud();
+        showToast('🗑️ 公告已成功刪除！');
+        render();
+      }
     };
 
     window.toggleAssigneeInModal = (name) => {
@@ -1222,8 +1229,15 @@
             ${sorted.map(ann => `
               <div class="bg-white p-5 rounded-2xl border shadow-xs space-y-2 relative ${ann.isPinned ? 'border-amber-400 bg-amber-50/20' : 'border-slate-200'}">
                 <div class="flex justify-between items-center">
-                  <span class="px-2.5 py-0.5 font-extrabold text-[11px] rounded-lg border bg-amber-100 text-amber-900 border-amber-300">${ann.level || '🟠 重要'}</span>
-                  <span class="text-xs text-indigo-900 font-extrabold">🏢 ${ann.author}</span>
+                  <div class="flex items-center space-x-2">
+                    <span class="px-2.5 py-0.5 font-extrabold text-[11px] rounded-lg border bg-amber-100 text-amber-900 border-amber-300">${ann.level || '🟠 重要'}</span>
+                    <span class="text-xs text-indigo-900 font-extrabold">🏢 ${ann.author}</span>
+                  </div>
+                  ${windowState.isAdmin ? `
+                    <button onclick="deleteAnnouncement(${ann.id})" class="bg-rose-100 hover:bg-rose-200 text-rose-700 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer">
+                      🗑️ 刪除公告
+                    </button>
+                  ` : ''}
                 </div>
                 <h3 class="font-bold text-slate-900 text-base">${ann.title}</h3>
                 <p class="text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-100 leading-relaxed">${ann.content}</p>
