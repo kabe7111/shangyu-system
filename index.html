@@ -87,7 +87,8 @@
       { id: 'E002', name: '陳副店', role: '門市副店長', dept: '門市/外場', type: '正職員工', status: '在職', healthCheckDate: '2025-08-01', pin: '8888', phone: '0923-456-789', emergencyContact: '陳先生 (父親)', emergencyPhone: '0922-222-333', address: '新北市板橋區文化路一段 88 號 3 樓', birthday: '1992-08-28', joinDate: '2023-08-01', leaveEntitled: 7, leaveUsed: 2, note: '支援外場調酒及現場服務動線規劃' },
       { id: 'E003', name: '林小婷', role: '外場資深服務員', dept: '門市/外場', type: '兼職 (PT)', status: '在職', healthCheckDate: '2024-05-10', pin: '8888', phone: '0934-567-890', emergencyContact: '林女士 (母親)', emergencyPhone: '0933-333-444', address: '台北市中山區南京東路二段 45 號 2 樓', birthday: '1998-07-30', joinDate: '2024-02-10', leaveEntitled: 3, leaveUsed: 1, note: '兼職，今日壽星！體檢過期禁止排班' },
       { id: 'E004', name: '張阿強', role: '內場備料廚師', dept: '兼職 (PT)', status: '在職', healthCheckDate: '2025-10-20', pin: '8888', phone: '0945-678-901', emergencyContact: '張大哥 (哥哥)', emergencyPhone: '0944-444-555', address: '桃園市中壢區中華路二段 12 號', birthday: '1995-09-12', joinDate: '2024-05-20', leaveEntitled: 3, leaveUsed: 0, note: '負責桃園央廚調理包排產與備料' },
-      { id: 'E005', name: '黃智勝', role: '主廚師傅', dept: '內場廚務', type: '正職員工', status: '在職', healthCheckDate: '2025-11-01', pin: '8888', phone: '0967-890-123', emergencyContact: '黃太太 (妻子)', emergencyPhone: '0966-666-777', address: '新北市三重區正義北路 50 號', birthday: '1990-12-18', joinDate: '2022-06-01', leaveEntitled: 10, leaveUsed: 5, note: '法式位上私廚與新菜色研發主管' }
+      { id: 'E005', name: '黃智勝', role: '主廚師傅', dept: '內場廚務', type: '正職員工', status: '在職', healthCheckDate: '2025-11-01', pin: '8888', phone: '0967-890-123', emergencyContact: '黃太太 (妻子)', emergencyPhone: '0966-666-777', address: '新北市三重區正義北路 50 號', birthday: '1990-12-18', joinDate: '2022-06-01', leaveEntitled: 10, leaveUsed: 5, note: '法式位上私廚與新菜色研發主管' },
+      { id: 'E006', name: '蘇冠勳', role: '活動支援人員', dept: '門市/外場', type: '兼職 (PT)', status: '在職', healthCheckDate: '2026-01-01', pin: '8888', phone: '0988-123-456', emergencyContact: '蘇家屬', emergencyPhone: '0988-654-321', address: '台北市大安區', birthday: '1995-01-01', joinDate: '2024-01-01', leaveEntitled: 3, leaveUsed: 0, note: '調酒與活動支援' }
     ];
 
     const initialAnnouncements = [
@@ -104,7 +105,8 @@
     ];
 
     const initialClockRecords = [
-      { id: 1, name: '王聖銓', date: todayStr, expected: '09:00', clockIn: '08:52', clockOut: '18:05', hoursWorked: 9.0, otHours: 0, status: '🟢 正常', location: '公司打卡' }
+      { id: 1, name: '王聖銓', date: todayStr, expected: '09:00', clockIn: '08:52', clockOut: '18:05', hoursWorked: 9.0, otHours: 0, status: '🟢 正常', location: '公司打卡' },
+      { id: 2, name: '蘇冠勳', date: todayStr, expected: '09:00', clockIn: '09:01', clockOut: '18:00', hoursWorked: 9.0, otHours: 0, status: '🟢 正常', location: '公司打卡' }
     ];
 
     const windowState = {
@@ -984,6 +986,8 @@
     };
 
     window.printAttendanceRecord = () => {
+      const selectEl = document.getElementById('attendance-staff-select');
+      if (selectEl) windowState.selectedCardStaff = selectEl.value;
       const targetEmp = windowState.employees.find(e => e.name === windowState.selectedCardStaff) || windowState.employees[0];
       const { days } = getMonthDaysData(windowState.scheduleYear, windowState.scheduleMonth);
       
