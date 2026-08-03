@@ -1714,7 +1714,7 @@
                   <span class="text-slate-400 block text-[10px]">打卡身分：</span>
                   <strong class="text-sm font-extrabold text-amber-300">${windowState.currentUser.name} (${windowState.currentUser.role})</strong>
                 </div>
-                <span class="text-xs bg-emerald-500/20 text-emerald-300 px-2.5 py-1 rounded-lg border border-emerald-500/40 font-bold">🟢 雲端連線中</span>
+                <span class="text-xs bg-emerald-500/20 text-emerald-300 px-2.5 py-1 rounded-xl border border-emerald-500/40 font-bold">🟢 雲端連線中</span>
               </div>
 
               ${windowState.clockMode === 'businessTrip' ? `
@@ -1755,7 +1755,7 @@
             <div class="flex justify-between items-center border-b pb-3 no-print">
               <h2 class="font-black text-slate-900 text-base">🗓️ 管理員檢視：【${targetEmp.name}】全月考勤打卡紀錄表 (${windowState.scheduleYear}年${windowState.scheduleMonth}月)</h2>
               <div class="flex items-center space-x-2">
-                <select onchange="windowState.selectedCardStaff = this.value; render();" class="p-2 bg-slate-50 border rounded-xl font-bold text-xs text-indigo-900 cursor-pointer">
+                <select id="attendance-staff-select" onchange="windowState.selectedCardStaff = this.value; render();" class="p-2 bg-slate-50 border rounded-xl font-bold text-xs text-indigo-900 cursor-pointer">
                   ${windowState.employees.filter(e => e.status !== '離職').map(e => `<option value="${e.name}" ${targetEmp.name === e.name ? 'selected' : ''}>${e.name} (${e.role})</option>`).join('')}
                 </select>
                 <button onclick="printAttendanceRecord()" class="bg-indigo-600 text-white px-3.5 py-2 rounded-xl text-xs font-bold cursor-pointer">🖨️ 列印 A4 單頁簽核表</button>
