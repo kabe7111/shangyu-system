@@ -23,10 +23,11 @@
         top: 0 !important;
         width: 100% !important;
         background: white !important;
-        padding: 0 !important;
+        padding: 10px !important;
         margin: 0 !important;
       }
       .no-print { display: none !important; }
+      @page { size: A4 portrait; margin: 15mm; }
     }
     .shift-select {
       -webkit-appearance: none;
@@ -982,34 +983,76 @@
       setTimeout(() => { printArea.innerHTML = ''; }, 1000);
     };
 
+    // 完美 A4 單頁考勤打卡紀錄表（含假別統計與下方三欄簽核區）
     window.printAttendanceRecord = () => {
       const targetEmp = windowState.employees.find(e => e.name === windowState.selectedCardStaff) || windowState.employees[0];
       const { days } = getMonthDaysData(windowState.scheduleYear, windowState.scheduleMonth);
       
+      const empClocks = windowState.clockRecords.filter(c => c.name === targetEmp.name && c.date.startsWith(`${windowState.scheduleYear}-${String(windowState.scheduleMonth).padStart(2,'0')}`));
+      const totalWorkH = empClocks.reduce((acc, c) => acc + (c.hoursWorked || 0), 0).toFixed(1);
+      const totalOTH = empClocks.reduce((acc, c) => acc + (c.otHours || 0), 0).toFixed(1);
+      const lateCount = empClocks.filter(c => c.status.includes('遲到')).length;
+
       const printArea = document.getElementById('print-modal-area');
       printArea.innerHTML = `
-        <div class="p-8 space-y-4">
-          <h1 class="text-xl font-black text-center border-b-2 border-slate-900 pb-2">全錸蒔國際餐飲 - 【${targetEmp.name}】${windowState.scheduleYear}年${windowState.scheduleMonth}月考勤打卡紀錄表</h1>
-          <table class="w-full text-xs text-center border-collapse border border-slate-400">
-            <thead class="bg-slate-100">
-              <tr><th class="p-2 border border-slate-400">日期</th><th class="p-2 border border-slate-400">預定班別</th><th class="p-2 border border-slate-400">上班刷卡</th><th class="p-2 border border-slate-400">下班刷卡</th><th class="p-2 border border-slate-400">實算工時/加班</th><th class="p-2 border border-slate-400">打卡地點</th></tr>
+        <div class="p-6 space-y-4 bg-white text-slate-900 max-w-[210mm] mx-auto text-xs">
+          <div class="text-center border-b-2 border-slate-900 pb-3 space-y-1">
+            <h1 class="text-xl font-black tracking-wider">全錸蒔國際餐飲 員工每月考勤打卡與出勤簽核表</h1>
+            <p class="text-xs text-slate-600">統計月份：<strong class="font-mono text-slate-900">${windowState.scheduleYear} 年 ${windowState.scheduleMonth} 月</strong> · 列印日期：${todayStr}</p>
+          </div>
+
+          <div class="grid grid-cols-4 gap-2 bg-slate-50 p-3 rounded-xl border border-slate-300 font-bold text-xs">
+            <div>員工工號：<span class="font-mono">${targetEmp.id}</span></div>
+            <div>同仁姓名：<span class="text-indigo-950 font-black">${targetEmp.name}</span></div>
+            <div>職稱崗位：<span>${targetEmp.role}</span></div>
+            <div>雇用類別：<span>${targetEmp.type}</span></div>
+          </div>
+
+          <table class="w-full text-[11px] text-center border-collapse border border-slate-400">
+            <thead class="bg-slate-100 font-bold">
+              <tr>
+                <th class="p-1.5 border border-slate-400 w-16">日期</th>
+                <th class="p-1.5 border border-slate-400 w-20">預定班別</th>
+                <th class="p-1.5 border border-slate-400 w-24">☀️ 上班刷卡</th>
+                <th class="p-1.5 border border-slate-400 w-24">🌙 下班刷卡</th>
+                <th class="p-1 border border-slate-400 w-24">實算工時/加班</th>
+                <th class="p-1.5 border border-slate-400 text-left">打卡地點 / 備註</th>
+              </tr>
             </thead>
             <tbody>
               ${days.map(m => {
                 const rec = windowState.clockRecords.find(c => c.name === targetEmp.name && c.date === m.dateStr);
                 return `
-                  <tr>
-                    <td class="p-2 border border-slate-400 font-mono">${windowState.scheduleMonth}/${m.day}</td>
-                    <td class="p-2 border border-slate-400">${getStaffShiftOnDate(targetEmp.name, m.dateStr)}</td>
-                    <td class="p-2 border border-slate-400 font-mono">${rec ? rec.clockIn : '--:--'}</td>
-                    <td class="p-2 border border-slate-400 font-mono">${rec ? rec.clockOut : '--:--'}</td>
-                    <td class="p-2 border border-slate-400 font-mono">${rec ? `${rec.hoursWorked || 0}h (${rec.otHours || 0}h加班)` : '-'}</td>
-                    <td class="p-2 border border-slate-400 text-left">${rec ? rec.location : '-'}</td>
+                  <tr class="${m.isWeekend || m.isHoliday ? 'bg-rose-50/30' : ''}">
+                    <td class="p-1.5 border border-slate-400 font-mono font-bold">${windowState.scheduleMonth}/${m.day} ${m.weekDay}</td>
+                    <td class="p-1.5 border border-slate-400">${getStaffShiftOnDate(targetEmp.name, m.dateStr)}</td>
+                    <td class="p-1.5 border border-slate-400 font-mono">${rec ? rec.clockIn : '--:--'}</td>
+                    <td class="p-1.5 border border-slate-400 font-mono">${rec ? rec.clockOut : '--:--'}</td>
+                    <td class="p-1.5 border border-slate-400 font-mono">${rec ? `${rec.hoursWorked || 0}h` : '-'}</td>
+                    <td class="p-1.5 border border-slate-400 text-left truncate">${rec ? rec.location : '-'}</td>
                   </tr>
                 `;
               }).join('')}
             </tbody>
           </table>
+
+          <div class="grid grid-cols-3 gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-300 font-bold text-center text-xs">
+            <div>本月總出勤工時：<span class="font-mono text-indigo-700">${totalWorkH} 小時</span></div>
+            <div>本月累計加班：<span class="font-mono text-amber-700">${totalOTH} 小時</span></div>
+            <div>本月遲到次數：<span class="font-mono text-rose-600">${lateCount} 次</span></div>
+          </div>
+
+          <div class="grid grid-cols-3 gap-8 pt-10 text-center font-bold text-xs">
+            <div class="border-t-2 border-slate-900 pt-2">
+              <p>員工親簽 (Signature)</p>
+            </div>
+            <div class="border-t-2 border-slate-900 pt-2">
+              <p>部門主管 / 店長覆核 (Manager)</p>
+            </div>
+            <div class="border-t-2 border-slate-900 pt-2">
+              <p>總經理 / 人事核准 (Director)</p>
+            </div>
+          </div>
         </div>
       `;
       window.print();
