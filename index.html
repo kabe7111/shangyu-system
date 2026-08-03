@@ -152,6 +152,7 @@
           if (docSnap.exists()) {
             const data = docSnap.data();
             if (data.employees && data.employees.length > 0) {
+              // 完整採用雲端資料，不再強制覆寫 E001
               windowState.employees = data.employees;
             }
             if (data.announcements && data.announcements.length > 0) windowState.announcements = data.announcements;
@@ -203,11 +204,9 @@
       }
     }
 
-    // 瀏覽器關閉/重新整理前的強制同步防護
     window.addEventListener('beforeunload', () => {
       if (db) {
-        // 觸發同步儲存
-        navigator.sendBeacon ? null : saveStateToCloud();
+        saveStateToCloud();
       }
     });
 
