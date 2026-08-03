@@ -203,6 +203,14 @@
       }
     }
 
+    // 瀏覽器關閉/重新整理前的強制同步防護
+    window.addEventListener('beforeunload', () => {
+      if (db) {
+        // 觸發同步儲存
+        navigator.sendBeacon ? null : saveStateToCloud();
+      }
+    });
+
     function getUniqueClockRecords() {
       const map = new Map();
       const sorted = [...windowState.clockRecords].sort((a, b) => a.id - b.id);
