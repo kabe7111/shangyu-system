@@ -534,7 +534,6 @@
       }
     };
 
-    // 透過暫存現有表單欄位內容，避免點擊時畫面清空
     window.syncModalDataFromInputs = () => {
       const titleEl = document.getElementById('task-title');
       const catEl = document.getElementById('task-category');
@@ -1430,7 +1429,7 @@
                         </button>
                       </div>
                     </div>
-                    <h4 class="font-black text-amber-300 text-sm">${t.title}</h4>
+                    <h4 class="font-black text-amber-300 text-sm cursor-pointer hover:underline" onclick="openEditTaskModal(${t.id})" title="點擊編輯此活動">${t.title} ✏️</h4>
                     <p class="text-slate-200 bg-black/30 p-2 rounded-lg border border-white/10">${t.content}</p>
 
                     ${t.checklist && t.checklist.length > 0 ? `
@@ -1493,7 +1492,7 @@
                       ${m.holidayName ? `<span class="text-[9px] bg-rose-600 text-white px-1 rounded font-black">${m.holidayName}</span>` : ''}
                     </div>
                     <div class="space-y-1 my-1 flex-1 overflow-y-auto max-h-[45px]">
-                      ${dayTaskList.map(t => `<div class="text-[9px] p-0.5 rounded truncate font-bold ${t.status === '已完成' ? 'bg-emerald-100 text-emerald-900' : 'bg-slate-100 text-indigo-900'}">${t.title}</div>`).join('')}
+                      ${dayTaskList.map(t => `<div onclick="event.stopPropagation(); openEditTaskModal(${t.id});" class="text-[9px] p-0.5 rounded truncate font-bold hover:underline ${t.status === '已完成' ? 'bg-emerald-100 text-emerald-900' : 'bg-slate-100 text-indigo-900'}" title="點擊編輯此活動">${t.title}</div>`).join('')}
                     </div>
                   </div>
                 `;
@@ -1503,7 +1502,7 @@
 
           <div class="bg-white p-5 rounded-2xl border border-indigo-200 shadow-md space-y-3">
             <div class="flex justify-between items-center border-b pb-3">
-              <h3 class="font-black text-slate-900 text-base">📅【${windowState.selectedTaskDate}】選定日期工作行程與派工 (依時間排序)</h3>
+              <h3 class="font-black text-slate-900 text-base">📅【${windowState.selectedTaskDate}】選定日期工作行程與派工 (點擊下方活動卡片即可直接修改)</h3>
               <button onclick="openCreateTaskModal('${windowState.selectedTaskDate}')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-xl font-bold text-xs cursor-pointer no-print">
                 + 為【${windowState.selectedTaskDate}】新增行程
               </button>
@@ -1513,7 +1512,7 @@
               ${selectedTaskList.map(t => {
                 const offAssignees = t.assignees.filter(name => ['休假', '事假', '病假', '陪產', '婚假', '喪假', '特一'].includes(getStaffShiftOnDate(name, t.date)));
                 return `
-                  <div class="p-4 rounded-2xl border text-xs space-y-2 bg-slate-50/50 border-slate-200 shadow-xs">
+                  <div onclick="openEditTaskModal(${t.id})" class="p-4 rounded-2xl border text-xs space-y-2 bg-slate-50/70 border-slate-200 shadow-xs cursor-pointer hover:border-indigo-500 hover:bg-indigo-50/20 transition-all" title="點擊修改此活動">
                     <div class="flex justify-between items-start">
                       <div class="flex items-center space-x-2">
                         <span class="px-2.5 py-0.5 bg-indigo-600 text-white font-extrabold rounded-lg">${t.category}</span>
@@ -1521,20 +1520,20 @@
                         <span class="text-slate-500 font-mono font-bold">🕒 ${t.startTime} ~ ${t.endTime}</span>
                         <span class="text-slate-600 font-bold">📍 ${t.location}</span>
                       </div>
-                      <div class="flex items-center space-x-1 no-print">
+                      <div class="flex items-center space-x-1 no-print" onclick="event.stopPropagation()">
                         <button onclick="copyTaskLineText(${t.id})" class="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded text-[11px] shadow cursor-pointer">💬 複製 LINE 交辦</button>
-                        <button onclick="openEditTaskModal(${t.id})" class="px-2 py-1 bg-slate-200 rounded text-[11px] font-bold cursor-pointer">✏️ 編輯</button>
+                        <button onclick="openEditTaskModal(${t.id})" class="px-2 py-1 bg-slate-200 hover:bg-slate-300 rounded text-[11px] font-bold cursor-pointer">✏️ 編輯</button>
                         <button onclick="deleteTask(${t.id})" class="px-2 py-1 bg-rose-100 text-rose-700 rounded text-[11px] font-bold cursor-pointer">🗑️ 刪除</button>
                         <button onclick="initiateCompleteTask(${t.id})" class="px-2.5 py-1 rounded font-bold cursor-pointer ${t.status === '已完成' ? 'bg-emerald-600 text-white' : 'bg-amber-400 text-slate-950'}">
                           ${t.status === '已完成' ? `✅ 已完成 (${t.completedBy})` : '⏳ 點擊完成'}
                         </button>
                       </div>
                     </div>
-                    <h4 class="font-extrabold text-slate-900 text-base">${t.title}</h4>
+                    <h4 class="font-extrabold text-slate-900 text-base">${t.title} ✏️ <span class="text-[10px] text-indigo-600 font-normal">(點擊可修改)</span></h4>
                     <p class="text-slate-600 bg-white p-2.5 rounded-xl border">${t.content}</p>
 
                     ${t.checklist && t.checklist.length > 0 ? `
-                      <div class="bg-amber-50/60 p-2.5 rounded-xl border border-amber-200 space-y-1 my-1">
+                      <div class="bg-amber-50/60 p-2.5 rounded-xl border border-amber-200 space-y-1 my-1" onclick="event.stopPropagation()">
                         <span class="font-extrabold text-amber-950 text-[11px]">📦 備料檢查清單：</span>
                         <div class="flex flex-wrap gap-2 pt-1">
                           ${t.checklist.map((chk, idx) => `
