@@ -39,7 +39,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-app.js";
     import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-analytics.js";
-    import { getFirestore, doc, setDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-firestore.js";
+    import { getFirestore, doc, setDoc, getDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyARUQy_y-QEPlm7arCJujXQBcFMDTUPBxc",
@@ -141,6 +141,7 @@
       }, 3500);
     }
 
+    // 強效雙向即時雲端同步 (使用強制快取繞過機制)
     function initFirebaseSync() {
       if (!db) {
         render();
@@ -148,37 +149,75 @@
       }
       try {
         const docRef = doc(db, 'system', 'mainData');
-        onSnapshot(docRef, (docSnap) => {
+        
+        // 進入網頁時立刻強制讀取一次最新雲端資料
+        getDoc(docRef).then((docSnap) => {
           if (docSnap.exists()) {
-            const data = docSnap.data();
-            if (data.employees && data.employees.length > 0) {
-              // 完整採用雲端資料，不再強制覆寫 E001
-              windowState.employees = data.employees;
-            }
-            if (data.announcements && data.announcements.length > 0) windowState.announcements = data.announcements;
-            if (data.tasks && data.tasks.length > 0) windowState.tasks = data.tasks;
-            if (data.schedules) windowState.schedules = data.schedules;
-            if (data.clockRecords && data.clockRecords.length > 0) windowState.clockRecords = data.clockRecords;
-            if (data.evaluations) windowState.evaluations = data.evaluations;
-            if (data.evalArchives) windowState.evalArchives = data.evalArchives;
-            if (data.logoUrl) windowState.logoUrl = data.logoUrl;
-            if (data.slogan) windowState.slogan = data.slogan;
-            
-            if (windowState.currentUser) {
-              const freshEmp = windowState.employees.find(e => e.name === windowState.currentUser.name);
-              if (freshEmp) {
-                windowState.currentUser = freshEmp;
-                localStorage.setItem('shangyu_loginUser', JSON.stringify(freshEmp));
-              }
-            }
-            render();
+            applyCloudData(docSnap.data());
           } else {
             saveStateToCloud();
           }
-        }, (err) => {
-          render();
-        });
+        }).catch(() => {});
+
+        // 即時監聽雲端變動
+        onSnapshot(docRef, (docSnap) => {
+          if (docSnap.exists()) {
+            applyCloudData(docSnap.data());
+          }
+        }, () => {});
       } catch (e) {
+        render();
+      }
+    }
+
+    function applyCloudData(data) {
+      let hasChanges = false;
+      if (data.employees && JSON.stringify(data.employees) !== JSON.stringify(windowState.employees)) {
+        windowState.employees = data.employees;
+        hasChanges = true;
+      }
+      if (data.announcements && JSON.stringify(data.announcements) !== JSON.stringify(windowState.announcements)) {
+        windowState.announcements = data.announcements;
+        hasChanges = true;
+      }
+      if (data.tasks && JSON.stringify(data.tasks) !== JSON.stringify(windowState.tasks)) {
+        windowState.tasks = data.tasks;
+        hasChanges = true;
+      }
+      if (data.schedules && JSON.stringify(data.schedules) !== JSON.stringify(windowState.schedules)) {
+        windowState.schedules = data.schedules;
+        hasChanges = true;
+      }
+      if (data.clockRecords && JSON.stringify(data.clockRecords) !== JSON.stringify(windowState.clockRecords)) {
+        windowState.clockRecords = data.clockRecords;
+        hasChanges = true;
+      }
+      if (data.evaluations && JSON.stringify(data.evaluations) !== JSON.stringify(windowState.evaluations)) {
+        windowState.evaluations = data.evaluations;
+        hasChanges = true;
+      }
+      if (data.evalArchives && JSON.stringify(data.evalArchives) !== JSON.stringify(windowState.evalArchives)) {
+        windowState.evalArchives = data.evalArchives;
+        hasChanges = true;
+      }
+      if (data.logoUrl && data.logoUrl !== windowState.logoUrl) {
+        windowState.logoUrl = data.logoUrl;
+        hasChanges = true;
+      }
+      if (data.slogan && data.slogan !== windowState.slogan) {
+        windowState.slogan = data.slogan;
+        hasChanges = true;
+      }
+
+      if (windowState.currentUser) {
+        const freshEmp = windowState.employees.find(e => e.name === windowState.currentUser.name);
+        if (freshEmp) {
+          windowState.currentUser = freshEmp;
+          localStorage.setItem('shangyu_loginUser', JSON.stringify(freshEmp));
+        }
+      }
+
+      if (hasChanges) {
         render();
       }
     }
@@ -199,6 +238,7 @@
           slogan: windowState.slogan,
           updatedAt: serverTimestamp()
         });
+        showToast("☁️ 資料已成功同步至雲端資料庫！");
       } catch (err) {
         console.error("Cloud Save Error: ", err);
       }
