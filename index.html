@@ -14,6 +14,22 @@
   <script src="https://cdn.tailwindcss.com"></script>
 
   <style>
+    @media print {
+      body * { visibility: hidden !important; }
+      #print-area, #print-area * { visibility: visible !important; }
+      #print-area {
+        position: fixed !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        background: white !important;
+        padding: 10px !important;
+        margin: 0 !important;
+        z-index: 99999 !important;
+      }
+      .no-print { display: none !important; }
+      @page { size: A4 portrait; margin: 8mm; }
+    }
     .shift-select {
       -webkit-appearance: none;
       -moz-appearance: none;
@@ -28,6 +44,7 @@
 
   <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
   <div id="app"></div>
+  <div id="print-area"></div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-app.js";
@@ -880,46 +897,23 @@
       if (!printEmp) return;
       const hcInfo = getHealthCheckInfo(printEmp.healthCheckDate);
 
-      const targetEmp = printEmp;
-      const { days } = getMonthDaysData(windowState.scheduleYear, windowState.scheduleMonth);
-      const empClocks = windowState.clockRecords.filter(c => c.name === targetEmp.name && c.date.startsWith(`${windowState.scheduleYear}-${String(windowState.scheduleMonth).padStart(2,'0')}`));
-      const totalWorkH = empClocks.reduce((acc, c) => acc + (c.hoursWorked || 0), 0).toFixed(1);
-      const totalOTH = empClocks.reduce((acc, c) => acc + (c.otHours || 0), 0).toFixed(1);
-      const lateCount = empClocks.filter(c => c.status.includes('遲到')).length;
-
-      const printWindow = window.open('', '_blank');
-      printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <title>員工履歷與人事資料卡 - ${printEmp.name}</title>
-          <style>
-            body { font-family: sans-serif; padding: 15px; font-size: 11px; color: #1e293b; }
-            h1 { text-align: center; font-size: 16px; font-weight: 900; border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin-bottom: 12px; }
-            table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
-            td { border: 1px solid #94a3b8; padding: 6px 8px; }
-            .bg { background: #f1f5f9; font-weight: bold; width: 20%; }
-          </style>
-        </head>
-        <body>
-          <h1>全錸蒔國際餐飲 員工個人履歷與人事資料卡</h1>
-          <table>
-            <tr><td class="bg">同仁姓名</td><td style="font-weight: bold;">${printEmp.name}</td><td class="bg">員工工號</td><td style="font-family: monospace;">${printEmp.id}</td></tr>
-            <tr><td class="bg">職稱崗位</td><td>${printEmp.role}</td><td class="bg">體檢狀態</td><td style="font-weight: bold;">${hcInfo.status}</td></tr>
-            <tr><td class="bg">🎂 生日</td><td>${printEmp.birthday}</td><td class="bg">📅 到職日</td><td>${printEmp.joinDate}</td></tr>
-            <tr><td class="bg">📞 電話</td><td style="font-family: monospace;">${printEmp.phone}</td><td class="bg">緊急聯絡人</td><td>${printEmp.emergencyContact} (${printEmp.emergencyPhone})</td></tr>
-            <tr><td class="bg">🏠 居住地址</td><td colspan="3">${printEmp.address}</td></tr>
-            <tr><td class="bg">🏖️ 特休額度</td><td colspan="3" style="font-weight: bold;">總額：${printEmp.leaveEntitled} 天 · 已休：${printEmp.leaveUsed} 天 · 剩餘：${printEmp.leaveEntitled - printEmp.leaveUsed} 天</td></tr>
-            <tr><td class="bg">📝 個人備註</td><td colspan="3">${printEmp.note || '無'}</td></tr>
+      const printArea = document.getElementById('print-area');
+      printArea.innerHTML = `
+        <div style="padding: 15px; font-size: 11px; color: #1e293b; background: white;">
+          <h1 style="text-align: center; font-size: 16px; font-weight: 900; border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin-bottom: 12px;">全錸蒔國際餐飲 員工個人履歷與人事資料卡</h1>
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">
+            <tr><td style="border: 1px solid #94a3b8; padding: 6px 8px; background: #f1f5f9; font-weight: bold; width: 20%;">同仁姓名</td><td style="border: 1px solid #94a3b8; padding: 6px 8px; font-weight: bold;">${printEmp.name}</td><td style="border: 1px solid #94a3b8; padding: 6px 8px; background: #f1f5f9; font-weight: bold; width: 20%;">員工工號</td><td style="border: 1px solid #94a3b8; padding: 6px 8px; font-family: monospace;">${printEmp.id}</td></tr>
+            <tr><td style="border: 1px solid #94a3b8; padding: 6px 8px; background: #f1f5f9; font-weight: bold;">職稱崗位</td><td style="border: 1px solid #94a3b8; padding: 6px 8px;">${printEmp.role}</td><td style="border: 1px solid #94a3b8; padding: 6px 8px; background: #f1f5f9; font-weight: bold;">體檢狀態</td><td style="border: 1px solid #94a3b8; padding: 6px 8px; font-weight: bold;">${hcInfo.status}</td></tr>
+            <tr><td style="border: 1px solid #94a3b8; padding: 6px 8px; background: #f1f5f9; font-weight: bold;">🎂 生日</td><td style="border: 1px solid #94a3b8; padding: 6px 8px;">${printEmp.birthday}</td><td style="border: 1px solid #94a3b8; padding: 6px 8px; background: #f1f5f9; font-weight: bold;">📅 到職日</td><td style="border: 1px solid #94a3b8; padding: 6px 8px;">${printEmp.joinDate}</td></tr>
+            <tr><td style="border: 1px solid #94a3b8; padding: 6px 8px; background: #f1f5f9; font-weight: bold;">📞 電話</td><td style="border: 1px solid #94a3b8; padding: 6px 8px; font-family: monospace;">${printEmp.phone}</td><td style="border: 1px solid #94a3b8; padding: 6px 8px; background: #f1f5f9; font-weight: bold;">緊急聯絡人</td><td style="border: 1px solid #94a3b8; padding: 6px 8px;">${printEmp.emergencyContact} (${printEmp.emergencyPhone})</td></tr>
+            <tr><td style="border: 1px solid #94a3b8; padding: 6px 8px; background: #f1f5f9; font-weight: bold;">🏠 居住地址</td><td colspan="3" style="border: 1px solid #94a3b8; padding: 6px 8px;">${printEmp.address}</td></tr>
+            <tr><td style="border: 1px solid #94a3b8; padding: 6px 8px; background: #f1f5f9; font-weight: bold;">🏖️ 特休額度</td><td colspan="3" style="border: 1px solid #94a3b8; padding: 6px 8px; font-weight: bold;">總額：${printEmp.leaveEntitled} 天 · 已休：${printEmp.leaveUsed} 天 · 剩餘：${printEmp.leaveEntitled - printEmp.leaveUsed} 天</td></tr>
+            <tr><td style="border: 1px solid #94a3b8; padding: 6px 8px; background: #f1f5f9; font-weight: bold;">📝 個人備註</td><td colspan="3" style="border: 1px solid #94a3b8; padding: 6px 8px;">${printEmp.note || '無'}</td></tr>
           </table>
-          <script>
-            window.onload = function() { window.print(); window.close(); };
-          </script>
-        </body>
-        </html>
-      `);
-      printWindow.document.close();
+        </div>
+      `;
+      window.print();
+      setTimeout(() => { printArea.innerHTML = ''; }, 1000);
     };
 
     window.printSingleEmployeeEval = (empName) => {
@@ -927,41 +921,25 @@
       const customEval = windowState.evaluations[empName] || { efficiencyScore: 3, tripCoopScore: 3, sanitationScore: 3, knowledgeScore: 3, comment: '工作表現正常。' };
       const score = 70 + (customEval.efficiencyScore * 2) + (customEval.tripCoopScore * 2) + (customEval.sanitationScore * 2) + (customEval.knowledgeScore * 2);
 
-      const printWindow = window.open('', '_blank');
-      printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <title>員工個人績效考核報告 - ${empName}</title>
-          <style>
-            body { font-family: sans-serif; padding: 15px; font-size: 11px; color: #1e293b; }
-            h1 { text-align: center; font-size: 16px; font-weight: 900; border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin-bottom: 12px; }
-            table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
-            td { border: 1px solid #94a3b8; padding: 8px; }
-            .bg { background: #f1f5f9; font-weight: bold; width: 25%; }
-          </style>
-        </head>
-        <body>
-          <h1>全錸蒔國際餐飲 員工個人績效考核報告</h1>
+      const printArea = document.getElementById('print-area');
+      printArea.innerHTML = `
+        <div style="padding: 15px; font-size: 11px; color: #1e293b; background: white;">
+          <h1 style="text-align: center; font-size: 16px; font-weight: 900; border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin-bottom: 12px;">全錸蒔國際餐飲 員工個人績效考核報告</h1>
           <div style="display: flex; justify-content: space-between; background: #f8fafc; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; margin-bottom: 12px; font-weight: bold;">
             <div>同仁姓名：<span style="color: #312e81;">${empName} (${emp?.role || '員工'})</span></div>
             <div>最終評定總分：<span style="color: #e11d48; font-size: 14px;">${score} 分</span></div>
           </div>
-          <table>
-            <tr><td class="bg">⚡ 工作效率</td><td>${'⭐'.repeat(customEval.efficiencyScore)}</td></tr>
-            <tr><td class="bg">🚗 出差配合</td><td>${'⭐'.repeat(customEval.tripCoopScore)}</td></tr>
-            <tr><td class="bg">🧹 食品衛生</td><td>${'⭐'.repeat(customEval.sanitationScore)}</td></tr>
-            <tr><td class="bg">📚 專業知識</td><td>${'⭐'.repeat(customEval.knowledgeScore)}</td></tr>
-            <tr><td class="bg">📝 主管評語</td><td style="line-height: 1.5;">${customEval.comment}</td></tr>
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">
+            <tr><td style="border: 1px solid #94a3b8; padding: 8px; background: #f1f5f9; font-weight: bold; width: 25%;">⚡ 工作效率</td><td style="border: 1px solid #94a3b8; padding: 8px;">${'⭐'.repeat(customEval.efficiencyScore)}</td></tr>
+            <tr><td style="border: 1px solid #94a3b8; padding: 8px; background: #f1f5f9; font-weight: bold;">🚗 出差配合</td><td style="border: 1px solid #94a3b8; padding: 8px;">${'⭐'.repeat(customEval.tripCoopScore)}</td></tr>
+            <tr><td style="border: 1px solid #94a3b8; padding: 8px; background: #f1f5f9; font-weight: bold;">🧹 食品衛生</td><td style="border: 1px solid #94a3b8; padding: 8px;">${'⭐'.repeat(customEval.sanitationScore)}</td></tr>
+            <tr><td style="border: 1px solid #94a3b8; padding: 8px; background: #f1f5f9; font-weight: bold;">📚 專業知識</td><td style="border: 1px solid #94a3b8; padding: 8px;">${'⭐'.repeat(customEval.knowledgeScore)}</td></tr>
+            <tr><td style="border: 1px solid #94a3b8; padding: 8px; background: #f1f5f9; font-weight: bold;">📝 主管評語</td><td style="border: 1px solid #94a3b8; padding: 8px; line-height: 1.5;">${customEval.comment}</td></tr>
           </table>
-          <script>
-            window.onload = function() { window.print(); window.close(); };
-          </script>
-        </body>
-        </html>
-      `);
-      printWindow.document.close();
+        </div>
+      `;
+      window.print();
+      setTimeout(() => { printArea.innerHTML = ''; }, 1000);
     };
 
     window.printAnnualEvalReport = () => {
@@ -969,27 +947,20 @@
       const empName = windowState.selectedAnnualEmp;
       const archives = windowState.evalArchives || {};
 
-      const printWindow = window.open('', '_blank');
-      printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <title>${year} 年度【${empName}】考核歷史彙整總表</title>
-          <style>
-            body { font-family: sans-serif; padding: 15px; font-size: 10px; color: #1e293b; }
-            h1 { text-align: center; font-size: 15px; font-weight: 900; border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin-bottom: 12px; }
-            table { width: 100%; border-collapse: collapse; text-align: center; }
-            th, td { border: 1px solid #94a3b8; padding: 5px; }
-            th { background: #f1f5f9; }
-          </style>
-        </head>
-        <body>
-          <h1>全錸蒔國際餐飲 - ${year} 年度【${empName}】考核歷史彙整總表</h1>
-          <table>
+      const printArea = document.getElementById('print-area');
+      printArea.innerHTML = `
+        <div style="padding: 15px; font-size: 10px; color: #1e293b; background: white;">
+          <h1 style="text-align: center; font-size: 15px; font-weight: 900; border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin-bottom: 12px;">全錸蒔國際餐飲 - ${year} 年度【${empName}】考核歷史彙整總表</h1>
+          <table style="width: 100%; border-collapse: collapse; text-align: center;">
             <thead>
-              <tr>
-                <th>月份</th><th>工作效率</th><th>出差配合</th><th>食品衛生</th><th>專業知識</th><th>總分</th><th style="text-align: left; padding-left: 6px;">主管評語</th>
+              <tr style="background: #f1f5f9;">
+                <th style="border: 1px solid #94a3b8; padding: 5px;">月份</th>
+                <th style="border: 1px solid #94a3b8; padding: 5px;">工作效率</th>
+                <th style="border: 1px solid #94a3b8; padding: 5px;">出差配合</th>
+                <th style="border: 1px solid #94a3b8; padding: 5px;">食品衛生</th>
+                <th style="border: 1px solid #94a3b8; padding: 5px;">專業知識</th>
+                <th style="border: 1px solid #94a3b8; padding: 5px;">總分</th>
+                <th style="border: 1px solid #94a3b8; padding: 5px; text-align: left; padding-left: 6px;">主管評語</th>
               </tr>
             </thead>
             <tbody>
@@ -998,28 +969,25 @@
                 const data = archives[key]?.[empName];
                 return `
                   <tr>
-                    <td style="font-weight: bold;">${year}年 ${m}月</td>
-                    <td>${data ? `${data.efficiencyScore}⭐` : '-'}</td>
-                    <td>${data ? `${data.tripCoopScore}⭐` : '-'}</td>
-                    <td>${data ? `${data.sanitationScore}⭐` : '-'}</td>
-                    <td>${data ? `${data.knowledgeScore}⭐` : '-'}</td>
-                    <td style="font-family: monospace; font-weight: bold; color: #4338ca;">${data ? `${data.totalScore}分` : '未存檔'}</td>
-                    <td style="text-align: left; padding-left: 6px;">${data ? data.comment : '-'}</td>
+                    <td style="border: 1px solid #94a3b8; padding: 5px; font-weight: bold;">${year}年 ${m}月</td>
+                    <td style="border: 1px solid #94a3b8; padding: 5px;">${data ? `${data.efficiencyScore}⭐` : '-'}</td>
+                    <td style="border: 1px solid #94a3b8; padding: 5px;">${data ? `${data.tripCoopScore}⭐` : '-'}</td>
+                    <td style="border: 1px solid #94a3b8; padding: 5px;">${data ? `${data.sanitationScore}⭐` : '-'}</td>
+                    <td style="border: 1px solid #94a3b8; padding: 5px;">${data ? `${data.knowledgeScore}⭐` : '-'}</td>
+                    <td style="border: 1px solid #94a3b8; padding: 5px; font-family: monospace; font-weight: bold; color: #4338ca;">${data ? `${data.totalScore}分` : '未存檔'}</td>
+                    <td style="border: 1px solid #94a3b8; padding: 5px; text-align: left; padding-left: 6px;">${data ? data.comment : '-'}</td>
                   </tr>
                 `;
               }).join('')}
             </tbody>
           </table>
-          <script>
-            window.onload = function() { window.print(); window.close(); };
-          </script>
-        </body>
-        </html>
-      `);
-      printWindow.document.close();
+        </div>
+      `;
+      window.print();
+      setTimeout(() => { printArea.innerHTML = ''; }, 1000);
     };
 
-    // 全面改用獨立彈出視窗列印，完美支援手機 App 版與網頁版，保證不空白、一頁 A4 裝下！
+    // 完美單頁 A4 考勤簽核表列印
     window.printAttendanceRecord = () => {
       const selectEl = document.getElementById('attendance-staff-select');
       if (selectEl) windowState.selectedCardStaff = selectEl.value;
@@ -1031,49 +999,30 @@
       const totalOTH = empClocks.reduce((acc, c) => acc + (c.otHours || 0), 0).toFixed(1);
       const lateCount = empClocks.filter(c => c.status.includes('遲到')).length;
 
-      const printWindow = window.open('', '_blank');
-      printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <title>員工每月考勤打卡與出勤簽核表 - ${targetEmp.name}</title>
-          <style>
-            @page { size: A4 portrait; margin: 8mm; }
-            body { font-family: sans-serif; padding: 5px; max-width: 210mm; margin: 0 auto; font-size: 11px; color: #1e293b; background: white; }
-            h1 { text-align: center; font-size: 15px; font-weight: 900; margin: 0 0 3px 0; }
-            .header { text-align: center; border-bottom: 2px solid #0f172a; padding-bottom: 6px; margin-bottom: 8px; }
-            .info-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; background: #f8fafc; padding: 6px 10px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: bold; margin-bottom: 8px; }
-            table { width: 100%; border-collapse: collapse; text-align: center; font-size: 10px; margin-bottom: 8px; }
-            th, td { border: 1px solid #94a3b8; padding: 3px 4px; }
-            th { background: #f1f5f9; font-weight: bold; }
-            .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; background: #f8fafc; padding: 6px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: bold; text-align: center; margin-bottom: 15px; }
-            .sign-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; text-align: center; font-weight: bold; font-size: 11px; margin-top: 10px; }
-            .sign-box { border-top: 2px solid #0f172a; padding-top: 6px; }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1>全錸蒔國際餐飲 員工每月考勤打卡與出勤簽核表</h1>
+      const printArea = document.getElementById('print-area');
+      printArea.innerHTML = `
+        <div style="font-family: sans-serif; padding: 4px; max-width: 210mm; margin: 0 auto; font-size: 11px; color: #1e293b; background: white;">
+          <div style="text-align: center; border-bottom: 2px solid #0f172a; padding-bottom: 6px; margin-bottom: 8px;">
+            <h1 style="font-size: 15px; font-weight: 900; margin: 0 0 3px 0;">全錸蒔國際餐飲 員工每月考勤打卡與出勤簽核表</h1>
             <p style="font-size: 10px; color: #64748b; margin: 0;">統計月份：<strong>${windowState.scheduleYear} 年 ${windowState.scheduleMonth} 月</strong> · 列印日期：${todayStr}</p>
           </div>
 
-          <div class="info-grid">
+          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; background: #f8fafc; padding: 6px 10px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: bold; margin-bottom: 8px;">
             <div>員工工號：<span style="font-family: monospace;">${targetEmp.id}</span></div>
             <div>同仁姓名：<span style="color: #312e81; font-weight: 900;">${targetEmp.name}</span></div>
             <div>職稱崗位：<span>${targetEmp.role}</span></div>
             <div>雇用類別：<span>${targetEmp.type}</span></div>
           </div>
 
-          <table>
+          <table style="width: 100%; border-collapse: collapse; text-align: center; font-size: 10px; margin-bottom: 8px;">
             <thead>
-              <tr>
-                <th style="width: 14%;">日期</th>
-                <th style="width: 16%;">預定班別</th>
-                <th style="width: 18%;">☀️ 上班刷卡</th>
-                <th style="width: 18%;">🌙 下班刷卡</th>
-                <th style="width: 14%;">實算工時</th>
-                <th style="text-align: left; padding-left: 6px;">打卡地點 / 備註</th>
+              <tr style="background: #f1f5f9;">
+                <th style="border: 1px solid #94a3b8; padding: 3px 4px; width: 14%;">日期</th>
+                <th style="border: 1px solid #94a3b8; padding: 3px 4px; width: 16%;">預定班別</th>
+                <th style="border: 1px solid #94a3b8; padding: 3px 4px; width: 18%;">☀️ 上班刷卡</th>
+                <th style="border: 1px solid #94a3b8; padding: 3px 4px; width: 18%;">🌙 下班刷卡</th>
+                <th style="border: 1px solid #94a3b8; padding: 3px 4px; width: 14%;">實算工時</th>
+                <th style="border: 1px solid #94a3b8; padding: 3px 4px; text-align: left; padding-left: 6px;">打卡地點 / 備註</th>
               </tr>
             </thead>
             <tbody>
@@ -1082,87 +1031,70 @@
                 const isRed = m.isWeekend || m.isHoliday;
                 return `
                   <tr style="${isRed ? 'background: #fff1f2;' : ''}">
-                    <td style="font-family: monospace; font-weight: bold;">${windowState.scheduleMonth}/${m.day} ${m.weekDay}</td>
-                    <td>${getStaffShiftOnDate(targetEmp.name, m.dateStr)}</td>
-                    <td style="font-family: monospace;">${rec ? rec.clockIn : '--:--'}</td>
-                    <td style="font-family: monospace;">${rec ? rec.clockOut : '--:--'}</td>
-                    <td style="font-family: monospace;">${rec ? `${rec.hoursWorked || 0}h` : '-'}</td>
-                    <td style="text-align: left; padding-left: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px;">${rec ? rec.location : '-'}</td>
+                    <td style="border: 1px solid #94a3b8; padding: 3px 4px; font-family: monospace; font-weight: bold;">${windowState.scheduleMonth}/${m.day} ${m.weekDay}</td>
+                    <td style="border: 1px solid #94a3b8; padding: 3px 4px;">${getStaffShiftOnDate(targetEmp.name, m.dateStr)}</td>
+                    <td style="border: 1px solid #94a3b8; padding: 3px 4px; font-family: monospace;">${rec ? rec.clockIn : '--:--'}</td>
+                    <td style="border: 1px solid #94a3b8; padding: 3px 4px; font-family: monospace;">${rec ? rec.clockOut : '--:--'}</td>
+                    <td style="border: 1px solid #94a3b8; padding: 3px 4px; font-family: monospace;">${rec ? `${rec.hoursWorked || 0}h` : '-'}</td>
+                    <td style="border: 1px solid #94a3b8; padding: 3px 4px; text-align: left; padding-left: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px;">${rec ? rec.location : '-'}</td>
                   </tr>
                 `;
               }).join('')}
             </tbody>
           </table>
 
-          <div class="summary-grid">
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; background: #f8fafc; padding: 6px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: bold; text-align: center; margin-bottom: 15px;">
             <div>本月總出勤工時：<span style="font-family: monospace; color: #4338ca;">${totalWorkH} 小時</span></div>
             <div>本月累計加班：<span style="font-family: monospace; color: #b45309;">${totalOTH} 小時</span></div>
             <div>本月遲到次數：<span style="font-family: monospace; color: #be123c;">${lateCount} 次</span></div>
           </div>
 
-          <div class="sign-grid">
-            <div class="sign-box">員工親簽 (Signature)</div>
-            <div class="sign-box">部門主管 / 店長覆核 (Manager)</div>
-            <div class="sign-box">總經理 / 人事核准 (Director)</div>
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; text-align: center; font-weight: bold; font-size: 11px; margin-top: 10px;">
+            <div style="border-top: 2px solid #0f172a; padding-top: 6px;">員工親簽 (Signature)</div>
+            <div style="border-top: 2px solid #0f172a; padding-top: 6px;">部門主管 / 店長覆核 (Manager)</div>
+            <div style="border-top: 2px solid #0f172a; padding-top: 6px;">總經理 / 人事核准 (Director)</div>
           </div>
-
-          <script>
-            window.onload = function() {
-              window.print();
-              window.close();
-            };
-          </script>
-        </body>
-        </html>
-      `);
-      printWindow.document.close();
+        </div>
+      `;
+      window.print();
+      setTimeout(() => { printArea.innerHTML = ''; }, 1000);
     };
 
     window.printLateReport = () => {
       const uniqueRecords = getUniqueClockRecords();
-      const printWindow = window.open('', '_blank');
-      printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <title>每月遲到與考勤統計報表</title>
-          <style>
-            body { font-family: sans-serif; padding: 15px; font-size: 11px; color: #1e293b; }
-            h1 { text-align: center; font-size: 16px; font-weight: 900; border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin-bottom: 12px; }
-            table { width: 100%; border-collapse: collapse; text-align: left; }
-            th, td { border: 1px solid #94a3b8; padding: 6px 8px; }
-            th { background: #f1f5f9; }
-          </style>
-        </head>
-        <body>
-          <h1>全錸蒔國際餐飲 - 每月遲到與考勤統計報表</h1>
-          <table>
+      const printArea = document.getElementById('print-area');
+      printArea.innerHTML = `
+        <div style="padding: 15px; font-size: 11px; color: #1e293b; background: white;">
+          <h1 style="text-align: center; font-size: 16px; font-weight: 900; border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin-bottom: 12px;">全錸蒔國際餐飲 - 每月遲到與考勤統計報表</h1>
+          <table style="width: 100%; border-collapse: collapse; text-align: left;">
             <thead>
-              <tr><th>工號</th><th>同仁姓名</th><th>職稱</th><th>遲到總次數</th><th>說明</th></tr>
+              <tr style="background: #f1f5f9;">
+                <th style="border: 1px solid #94a3b8; padding: 6px 8px;">工號</th>
+                <th style="border: 1px solid #94a3b8; padding: 6px 8px;">同仁姓名</th>
+                <th style="border: 1px solid #94a3b8; padding: 6px 8px;">職稱</th>
+                <th style="border: 1px solid #94a3b8; padding: 6px 8px;">遲到總次數</th>
+                <th style="border: 1px solid #94a3b8; padding: 6px 8px;">說明</th>
+              </tr>
             </thead>
             <tbody>
               ${windowState.employees.map(e => {
                 const count = uniqueRecords.filter(c => c.name === e.name && c.status.includes('遲到')).length;
                 return `
                   <tr>
-                    <td style="font-family: monospace;">${e.id}</td>
-                    <td style="font-weight: bold;">${e.name}</td>
-                    <td>${e.role}</td>
-                    <td style="font-family: monospace; color: #e11d48; font-weight: bold;">${count} 次</td>
-                    <td>${count > 0 ? `扣分 ${count * 5} 分` : '🟢 無扣分'}</td>
+                    <td style="border: 1px solid #94a3b8; padding: 6px 8px; font-family: monospace;">${e.id}</td>
+                    <td style="border: 1px solid #94a3b8; padding: 6px 8px; font-weight: bold;">${e.name}</td>
+                    <td style="border: 1px solid #94a3b8; padding: 6px 8px;">${e.role}</td>
+                    <td style="border: 1px solid #94a3b8; padding: 6px 8px; font-family: monospace; color: #e11d48; font-weight: bold;">${count} 次</td>
+                    <td style="border: 1px solid #94a3b8; padding: 6px 8px;">${count > 0 ? `扣分 ${count * 5} 分` : '🟢 無扣分'}</td>
                   </tr>
                 `;
               }).join('')}
             </tbody>
           </table>
-          <script>
-            window.onload = function() { window.print(); window.close(); };
-          </script>
-        </body>
-        </html>
-      `);
-      printWindow.document.close();
+        </div>
+      `;
+      window.print();
+      setTimeout(() => { printArea.innerHTML = ''; }, 1000);
     };
 
     function maskText(text, type) {
@@ -1790,7 +1722,7 @@
                   <span class="text-slate-400 block text-[10px]">打卡身分：</span>
                   <strong class="text-sm font-extrabold text-amber-300">${windowState.currentUser.name} (${windowState.currentUser.role})</strong>
                 </div>
-                <span class="text-xs bg-emerald-500/20 text-emerald-300 px-2.5 py-1 rounded-lg border border-emerald-500/40 font-bold">🟢 雲端連線中</span>
+                <span class="text-xs bg-emerald-500/20 text-emerald-300 px-2.5 py-1 rounded-xl border border-emerald-500/40 font-bold">🟢 雲端連線中</span>
               </div>
 
               ${windowState.clockMode === 'businessTrip' ? `
