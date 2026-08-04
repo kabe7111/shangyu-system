@@ -250,7 +250,6 @@
           slogan: windowState.slogan,
           updatedAt: serverTimestamp()
         });
-        showToast("☁️ 資料已成功同步至雲端資料庫！");
       } catch (err) {
         console.error("Cloud Save Error: ", err);
       }
@@ -277,78 +276,9 @@
       if (newSlogan !== null && newSlogan.trim() !== "") {
         windowState.slogan = newSlogan.trim();
         saveStateToCloud();
-        showToast("🎉 公司標語已更新並即時同步至雲端！");
+        showToast("🎉 公司標語已更新！");
         render();
       }
-    };
-
-    window.exportSystemBackup = () => {
-      const backupData = {
-        version: "1.0",
-        exportDate: new Date().toISOString(),
-        employees: windowState.employees,
-        announcements: windowState.announcements,
-        tasks: windowState.tasks,
-        schedules: windowState.schedules,
-        clockRecords: windowState.clockRecords,
-        evaluations: windowState.evaluations,
-        evalArchives: windowState.evalArchives,
-        slogan: windowState.slogan
-      };
-      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
-      const downloadAnchor = document.createElement('a');
-      downloadAnchor.setAttribute("href", dataStr);
-      downloadAnchor.setAttribute("download", `QuanLaiShi_Backup_${todayStr}.json`);
-      document.body.appendChild(downloadAnchor);
-      downloadAnchor.click();
-      downloadAnchor.remove();
-      showToast('💾 系統資料備份檔案已成功匯出！');
-    };
-
-    window.importSystemBackup = (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = async (uploadEvent) => {
-        try {
-          const parsed = JSON.parse(uploadEvent.target.result);
-          if (parsed.employees) windowState.employees = parsed.employees;
-          if (parsed.announcements) windowState.announcements = parsed.announcements;
-          if (parsed.tasks) windowState.tasks = parsed.tasks;
-          if (parsed.schedules) windowState.schedules = parsed.schedules;
-          if (parsed.clockRecords) windowState.clockRecords = parsed.clockRecords;
-          if (parsed.evaluations) windowState.evaluations = parsed.evaluations;
-          if (parsed.evalArchives) windowState.evalArchives = parsed.evalArchives;
-          if (parsed.slogan) windowState.slogan = parsed.slogan;
-          
-          await saveStateToCloud();
-          showToast('🎉 資料還原成功！系統已更新至最新狀態。');
-          render();
-        } catch (err) {
-          showToast('❌ 備份檔案格式錯誤或損毀', 'error');
-        }
-      };
-      reader.readAsText(file);
-    };
-
-    window.copyTaskLineText = (taskId) => {
-      const task = windowState.tasks.find(t => t.id === taskId);
-      if (!task) return;
-      let chkText = '';
-      if (task.checklist && task.checklist.length > 0) {
-        chkText = '\n\n📦 **備料/出勤檢查清單**：\n' + task.checklist.map(c => `${c.checked ? '[✓]' : '[☐]'} ${c.item}`).join('\n');
-      }
-      const lineText = `📌 【全錸蒔國際餐飲 - 工作交辦通知】\n\n🔹 任務主題：${task.title}\n🔹 工作分類：${task.category}\n📅 預定日期：${task.date}\n🕒 時間：${task.startTime} ~ ${task.endTime}\n📍 地點：${task.location}\n👥 負責同仁：${task.assignees.join('、')}\n\n📝 工作說明：\n${task.content || '無'}${chkText}\n\n收到請回覆「收到 +1」，謝謝配合！`;
-      navigator.clipboard.writeText(lineText).then(() => {
-        showToast(`💬 已成功複製【${task.title}】交辦訊息！`);
-      });
-    };
-
-    window.copyHealthCheckReminderLineText = (empName, expireDateStr) => {
-      const text = `【全錸蒔國際餐飲 - 人事健康檢查溫馨提醒】\n\n${empName} 同仁您好：\n提醒您，依食品安全衛生管理法與公司規範，您的餐飲從業人員健康檢查效期至【${expireDateStr}】將屆滿/已過期。\n為保障您的排班權益與顧客用餐安全，請於近期前往合格醫療院所完成體檢，並將合格報告交予 HR / 店長備查，謝謝您的配合！`;
-      navigator.clipboard.writeText(text).then(() => {
-        showToast(`📋 已成功複製【${empName}】體檢催辦訊息！`);
-      });
     };
 
     window.switchModule = (moduleId) => { windowState.activeModule = moduleId; render(); };
@@ -366,32 +296,6 @@
     window.toggleShowTerminatedEmps = () => {
       windowState.showTerminatedEmps = !windowState.showTerminatedEmps;
       render();
-    };
-
-    window.handleLogoUpload = (e) => {
-      const file = e.target.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (uploadEvent) => {
-          windowState.logoUrl = uploadEvent.target.result;
-          localStorage.setItem('shangyu_logo', windowState.logoUrl);
-          saveStateToCloud();
-          showToast('🎉 公司品牌 Logo 已更換！');
-          render();
-        };
-        reader.readAsDataURL(file);
-      }
-    };
-
-    window.handleAnnImageUploadInModal = (e) => {
-      const file = e.target.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (uploadEvent) => {
-          windowState.modalData.imageUrl = uploadEvent.target.result;
-        };
-        reader.readAsDataURL(file);
-      }
     };
 
     window.handleUserLoginSubmit = (e) => {
@@ -448,43 +352,12 @@
       });
       saveStateToCloud();
       showToast(`🎉 【${windowState.currentUser.name}】打卡成功！(工時：${hoursWorked}h)`);
-    };
-
-    window.openEditClockModal = (recordId) => {
-      if (!windowState.isAdmin) return showToast('🔒 請先解鎖管理員權限才能修改打卡！', 'warning');
-      const rec = windowState.clockRecords.find(c => c.id === recordId);
-      if (!rec) return;
-      windowState.modalData = { ...rec };
-      windowState.activeModal = 'clockModal';
       render();
     };
 
-    window.handleSaveClockSubmit = (e) => {
-      e.preventDefault();
-      const m = windowState.modalData;
-      const inTime = document.getElementById('edit-clock-in').value;
-      const outTime = document.getElementById('edit-clock-out').value;
-      const loc = document.getElementById('edit-clock-loc').value;
-
-      let hoursWorked = Number(m.hoursWorked) || 0.0;
-      let otHours = Number(m.otHours) || 0.0;
-
-      if (inTime && outTime && inTime !== '--:--' && outTime !== '--:--') {
-        const [inH, inM] = inTime.split(':').map(Number);
-        const [outH, outM] = outTime.split(':').map(Number);
-        const diffMin = Math.max(0, (outH * 60 + outM) - (inH * 60 + inM));
-        hoursWorked = Math.round((diffMin / 60) * 2) / 2;
-        if (hoursWorked > 9.0) otHours = hoursWorked - 9.0;
-      }
-
-      windowState.clockRecords = windowState.clockRecords.map(c => c.id === m.id ? {
-        ...c, clockIn: inTime, clockOut: outTime, location: loc, hoursWorked, otHours,
-        status: (inTime > '09:00' ? '⚠️ 遲到' : '🟢 正常')
-      } : c);
-
-      saveStateToCloud();
-      windowState.activeModal = null;
-      showToast('✅ 打卡記錄已成功修改並同步至雲端！');
+    window.openAdminLoginModal = () => {
+      windowState.activeModal = 'admin';
+      render();
     };
 
     window.handleAdminLoginSubmit = (e) => {
@@ -567,16 +440,6 @@
       render();
     };
 
-    window.deleteAnnouncement = (annId) => {
-      if (!windowState.isAdmin) return showToast('🔒 請先解鎖管理員權限才能刪除公告！', 'warning');
-      if (confirm('確定要刪除這則公告嗎？')) {
-        windowState.announcements = windowState.announcements.filter(a => a.id !== annId);
-        saveStateToCloud();
-        showToast('🗑️ 公告已成功刪除！');
-        render();
-      }
-    };
-
     window.toggleAssigneeInModal = (name) => {
       window.syncModalDataFromInputs();
       const list = windowState.modalData.assignees || [];
@@ -611,6 +474,7 @@
       saveStateToCloud();
       windowState.activeModal = null;
       showToast('✅ 工作行程已儲存！');
+      render();
     };
 
     window.openCreateEmpModal = () => {
@@ -658,68 +522,7 @@
       }
       saveStateToCloud();
       windowState.activeModal = null;
-      showToast('✅ 員工資料與名冊已成功同步至雲端存檔！');
-      render();
-    };
-
-    window.openEditEvalModal = (empName) => {
-      const customEval = windowState.evaluations[empName] || { efficiencyScore: 3, tripCoopScore: 3, sanitationScore: 3, knowledgeScore: 3, comment: '' };
-      windowState.modalData = { name: empName, ...customEval };
-      windowState.activeModal = 'evalModal';
-      render();
-    };
-
-    window.handleSaveEvalSubmit = (e) => {
-      e.preventDefault();
-      windowState.evaluations[windowState.modalData.name] = {
-        efficiencyScore: Number(document.getElementById('eval-eff').value),
-        tripCoopScore: Number(document.getElementById('eval-trip').value),
-        sanitationScore: Number(document.getElementById('eval-san').value),
-        knowledgeScore: Number(document.getElementById('eval-knw').value),
-        comment: document.getElementById('eval-comment').value
-      };
-      saveStateToCloud();
-      windowState.activeModal = null;
-      showToast('✅ 已更新考核評分與評語！');
-    };
-
-    window.archiveCurrentEvaluation = () => {
-      if (!windowState.isAdmin) return showToast('🔒 請先解鎖管理員權限才能執行存檔！', 'warning');
-      const archiveKey = `${windowState.scheduleYear}-${windowState.scheduleMonth}`;
-      
-      const uniqueRecords = getUniqueClockRecords();
-      const currentMonthEvals = {};
-
-      windowState.employees.forEach(emp => {
-        const empTasks = windowState.tasks.filter(t => t.assignees.includes(emp.name));
-        const completedTaskCount = empTasks.filter(t => t.status === '已完成').length;
-        const uncompletedTaskCount = empTasks.filter(t => t.status !== '已完成' && t.date <= todayStr).length;
-        const empClocks = uniqueRecords.filter(c => c.name === emp.name);
-        const lateCount = empClocks.filter(c => c.status.includes('遲到')).length;
-
-        const customEval = windowState.evaluations[emp.name] || {
-          efficiencyScore: 3, tripCoopScore: 3, sanitationScore: 3, knowledgeScore: 3,
-          comment: '工作表現正常。'
-        };
-
-        const calculatedScore = Math.min(100, Math.max(0,
-          70 + (customEval.efficiencyScore * 2) + (customEval.tripCoopScore * 2) + (customEval.sanitationScore * 2) + (customEval.knowledgeScore * 2) + (completedTaskCount * 2) - (lateCount * 5) - (uncompletedTaskCount * 3)
-        ));
-
-        currentMonthEvals[emp.name] = {
-          role: emp.role,
-          ...customEval,
-          completedTaskCount,
-          uncompletedTaskCount,
-          lateCount,
-          totalScore: calculatedScore
-        };
-      });
-
-      if (!windowState.evalArchives) windowState.evalArchives = {};
-      windowState.evalArchives[archiveKey] = currentMonthEvals;
-      saveStateToCloud();
-      showToast(`🎉 成功將【${windowState.scheduleYear} 年 ${windowState.scheduleMonth} 月】考核紀錄封存入庫！`);
+      showToast('✅ 員工資料已成功儲存！');
       render();
     };
 
@@ -732,44 +535,22 @@
 
       windowState.announcements.unshift({
         id: Date.now(), title, level, category: '重要', isPinned: false,
-        date: todayStr, author, content, imageUrl: windowState.modalData.imageUrl || ''
+        date: todayStr, author, content, imageUrl: ''
       });
       saveStateToCloud();
       windowState.activeModal = null;
       showToast('✅ 成功發布新公告！');
-    };
-
-    window.handleShiftSelectChange = (empName, dayIdx, selectElement) => {
-      if (!windowState.isAdmin) {
-        alert('🔒 請先解鎖管理員權限才能修改班表！');
-        render();
-        return;
-      }
-      
-      const emp = windowState.employees.find(e => e.name === empName);
-      const hcInfo = getHealthCheckInfo(emp?.healthCheckDate);
-      if (emp && hcInfo.isExpired) {
-        alert(`🚨 警告：【${empName}】體檢已過期！依規禁止排班上班。`);
-        render();
-        return;
-      }
-
-      const nextShift = selectElement.value;
-      const key = `${windowState.scheduleYear}-${windowState.scheduleMonth}-${empName}`;
-      const { days } = getMonthDaysData(windowState.scheduleYear, windowState.scheduleMonth);
-      const existingShifts = windowState.schedules[key] || days.map(m => (m.holidayName || m.isWeekend ? '休假' : '上班'));
-
-      const updated = [...existingShifts];
-      updated[dayIdx] = nextShift;
-      windowState.schedules[key] = updated;
-      saveStateToCloud();
-      showToast(`⚡ 已更新【${empName}】${windowState.scheduleMonth}/${days[dayIdx].day} 班別為：${nextShift}`);
       render();
     };
 
-    window.handleAttendanceStaffChange = (selectEl) => {
-      windowState.selectedCardStaff = selectEl.value;
-      render();
+    window.deleteAnnouncement = (annId) => {
+      if (!windowState.isAdmin) return showToast('🔒 請先解鎖管理員權限！', 'warning');
+      if (confirm('確定要刪除這則公告嗎？')) {
+        windowState.announcements = windowState.announcements.filter(a => a.id !== annId);
+        saveStateToCloud();
+        showToast('🗑️ 公告已刪除！');
+        render();
+      }
     };
 
     window.initiateCompleteTask = (id) => {
@@ -778,58 +559,14 @@
         if (task.status === '已完成') {
           task.status = '待處理';
           task.completedBy = '';
-          saveStateToCloud();
           showToast('已切換為待處理');
         } else {
           task.status = '已完成';
-          task.completedBy = windowState.currentUser.name;
-
-          if (task.repeat && task.repeat !== '單次') {
-            const currDate = new Date(task.date);
-            if (task.repeat === '每日') {
-              currDate.setDate(currDate.getDate() + 1);
-            } else if (task.repeat === '每週') {
-              currDate.setDate(currDate.getDate() + 7);
-            } else if (task.repeat === '每月') {
-              currDate.setMonth(currDate.getMonth() + 1);
-            } else if (task.repeat === '每兩個月') {
-              currDate.setMonth(currDate.getMonth() + 2);
-            } else if (task.repeat === '每三個月') {
-              currDate.setMonth(currDate.getMonth() + 3);
-            } else if (task.repeat === '每半年') {
-              currDate.setMonth(currDate.getMonth() + 6);
-            } else if (task.repeat === '每年') {
-              currDate.setFullYear(currDate.getFullYear() + 1);
-            }
-
-            const nextDateStr = currDate.toISOString().slice(0, 10);
-            const duplicatedChecklist = (task.checklist || []).map(c => ({ ...c, checked: false }));
-
-            const exists = windowState.tasks.some(t => t.title === task.title && t.date === nextDateStr);
-            if (!exists) {
-              windowState.tasks.unshift({
-                id: Date.now(),
-                title: task.title,
-                category: task.category,
-                repeat: task.repeat,
-                content: task.content,
-                date: nextDateStr,
-                startTime: task.startTime,
-                endTime: task.endTime,
-                location: task.location,
-                assignees: [...task.assignees],
-                checklist: duplicatedChecklist,
-                status: '待處理',
-                completedBy: ''
-              });
-              showToast(`🔁 任務已完成，並自動幫您生成下一週期 (${nextDateStr}) 的新任務！`);
-            }
-          } else {
-            showToast(`✅ 【${windowState.currentUser.name}】已完成任務！考核自動加分！`);
-          }
-
-          saveStateToCloud();
+          task.completedBy = windowState.currentUser?.name || '管理員';
+          showToast('✅ 任務已完成！');
         }
+        saveStateToCloud();
+        render();
       }
     };
 
@@ -838,407 +575,171 @@
       if (task && task.checklist && task.checklist[chkIdx]) {
         task.checklist[chkIdx].checked = !task.checklist[chkIdx].checked;
         saveStateToCloud();
+        render();
       }
     };
 
-    window.shiftMonth = (offset) => {
-      let m = windowState.scheduleMonth + offset;
-      let y = windowState.scheduleYear;
-      if (m > 12) { m = 1; y += 1; }
-      if (m < 1) { m = 12; y -= 1; }
-      windowState.scheduleMonth = m;
-      windowState.scheduleYear = y;
-      render();
-    };
-
-    window.jumpToCurrentMonth = () => {
-      const d = new Date();
-      windowState.scheduleYear = d.getFullYear();
-      windowState.scheduleMonth = d.getMonth() + 1;
-      windowState.selectedTaskDate = `${windowState.scheduleYear}-${String(windowState.scheduleMonth).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-      showToast("📍 已回到今天與當月");
-      render();
-    };
-
-    window.autoFillDefaultSchedule = () => {
-      if (!windowState.isAdmin) return alert('🔒 請先解鎖管理員權限！');
-      const { days } = getMonthDaysData(windowState.scheduleYear, windowState.scheduleMonth);
-
-      windowState.employees.forEach(emp => {
-        const hcInfo = getHealthCheckInfo(emp.healthCheckDate);
-        if (emp.status !== '離職' && !hcInfo.isExpired) {
-          const key = `${windowState.scheduleYear}-${windowState.scheduleMonth}-${emp.name}`;
-          windowState.schedules[key] = days.map(m => (m.isWeekend || m.isHoliday ? '休假' : '上班'));
-        }
-      });
-      saveStateToCloud();
-      showToast('⚡ 全店已同步帶入標準班表（國定假日與週末自動顯示休假）！');
-    };
-
-    window.printSingleEmployeeRoster = (empId) => {
-      const printEmp = windowState.employees.find(e => e.id === empId);
-      if (!printEmp) return;
-      const hcInfo = getHealthCheckInfo(printEmp.healthCheckDate);
-
-      const printWindow = window.open('', '_blank');
-      printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <title>員工履歷與人事資料卡 - ${printEmp.name}</title>
-          <style>
-            body { font-family: sans-serif; padding: 20px; font-size: 12px; color: #1e293b; }
-            h1 { text-align: center; font-size: 18px; font-weight: 900; border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin-bottom: 15px; }
-            table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
-            td { border: 1px solid #94a3b8; padding: 8px 10px; }
-            .bg { background: #f1f5f9; font-weight: bold; width: 20%; }
-          </style>
-        </head>
-        <body>
-          <h1>全錸蒔國際餐飲 員工個人履歷與人事資料卡</h1>
-          <table>
-            <tr><td class="bg">同仁姓名</td><td style="font-weight: bold;">${printEmp.name}</td><td class="bg">員工工號</td><td style="font-family: monospace;">${printEmp.id}</td></tr>
-            <tr><td class="bg">職稱崗位</td><td>${printEmp.role}</td><td class="bg">體檢狀態</td><td style="font-weight: bold;">${hcInfo.status}</td></tr>
-            <tr><td class="bg">🎂 生日</td><td>${printEmp.birthday}</td><td class="bg">📅 到職日</td><td>${printEmp.joinDate}</td></tr>
-            <tr><td class="bg">📞 電話</td><td style="font-family: monospace;">${printEmp.phone}</td><td class="bg">緊急聯絡人</td><td>${printEmp.emergencyContact} (${printEmp.emergencyPhone})</td></tr>
-            <tr><td class="bg">🏠 居住地址</td><td colspan="3">${printEmp.address}</td></tr>
-            <tr><td class="bg">🏖️ 特休額度</td><td colspan="3" style="font-weight: bold;">總額：${printEmp.leaveEntitled} 天 · 已休：${printEmp.leaveUsed} 天 · 剩餘：${printEmp.leaveEntitled - printEmp.leaveUsed} 天</td></tr>
-            <tr><td class="bg">📝 個人備註</td><td colspan="3">${printEmp.note || '無'}</td></tr>
-          </table>
-          <script>
-            window.onload = function() { window.print(); window.close(); };
-          </script>
-        </body>
-        </html>
-      `);
-      printWindow.document.close();
-    };
-
-    window.printSingleEmployeeEval = (empName) => {
-      const emp = windowState.employees.find(e => e.name === empName);
-      const customEval = windowState.evaluations[empName] || { efficiencyScore: 3, tripCoopScore: 3, sanitationScore: 3, knowledgeScore: 3, comment: '工作表現正常。' };
-      const score = 70 + (customEval.efficiencyScore * 2) + (customEval.tripCoopScore * 2) + (customEval.sanitationScore * 2) + (customEval.knowledgeScore * 2);
-
-      const printWindow = window.open('', '_blank');
-      printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <title>員工個人績效考核報告 - ${empName}</title>
-          <style>
-            body { font-family: sans-serif; padding: 20px; font-size: 12px; color: #1e293b; }
-            h1 { text-align: center; font-size: 18px; font-weight: 900; border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin-bottom: 15px; }
-            table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
-            td { border: 1px solid #94a3b8; padding: 10px; }
-            .bg { background: #f1f5f9; font-weight: bold; width: 25%; }
-          </style>
-        </head>
-        <body>
-          <h1>全錸蒔國際餐飲 員工個人績效考核報告</h1>
-          <div style="display: flex; justify-content: space-between; background: #f8fafc; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 6px; margin-bottom: 15px; font-weight: bold;">
-            <div>同仁姓名：<span style="color: #312e81;">${empName} (${emp?.role || '員工'})</span></div>
-            <div>最終評定總分：<span style="color: #e11d48; font-size: 15px;">${score} 分</span></div>
-          </div>
-          <table>
-            <tr><td class="bg">⚡ 工作效率</td><td>${'⭐'.repeat(customEval.efficiencyScore)}</td></tr>
-            <tr><td class="bg">🚗 出差配合</td><td>${'⭐'.repeat(customEval.tripCoopScore)}</td></tr>
-            <tr><td class="bg">🧹 食品衛生</td><td>${'⭐'.repeat(customEval.sanitationScore)}</td></tr>
-            <tr><td class="bg">📚 專業知識</td><td>${'⭐'.repeat(customEval.knowledgeScore)}</td></tr>
-            <tr><td class="bg">📝 主管評語</td><td style="line-height: 1.6;">${customEval.comment}</td></tr>
-          </table>
-          <script>
-            window.onload = function() { window.print(); window.close(); };
-          </script>
-        </body>
-        </html>
-      `);
-      printWindow.document.close();
-    };
-
-    window.printAnnualEvalReport = () => {
-      const year = windowState.selectedAnnualYear;
-      const empName = windowState.selectedAnnualEmp;
-      const archives = windowState.evalArchives || {};
-
-      const printWindow = window.open('', '_blank');
-      printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <title>${year} 年度【${empName}】考核歷史彙整總表</title>
-          <style>
-            body { font-family: sans-serif; padding: 20px; font-size: 11px; color: #1e293b; }
-            h1 { text-align: center; font-size: 17px; font-weight: 900; border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin-bottom: 15px; }
-            table { width: 100%; border-collapse: collapse; text-align: center; }
-            th, td { border: 1px solid #94a3b8; padding: 6px; }
-            th { background: #f1f5f9; }
-          </style>
-        </head>
-        <body>
-          <h1>全錸蒔國際餐飲 - ${year} 年度【${empName}】考核歷史彙整總表</h1>
-          <table>
-            <thead>
-              <tr>
-                <th>月份</th><th>工作效率</th><th>出差配合</th><th>食品衛生</th><th>專業知識</th><th>總分</th><th style="text-align: left; padding-left: 8px;">主管評語</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${Array.from({length: 12}, (_, i) => i + 1).map(m => {
-                const key = `${year}-${m}`;
-                const data = archives[key]?.[empName];
-                return `
-                  <tr>
-                    <td style="font-weight: bold;">${year}年 ${m}月</td>
-                    <td>${data ? `${data.efficiencyScore}⭐` : '-'}</td>
-                    <td>${data ? `${data.tripCoopScore}⭐` : '-'}</td>
-                    <td>${data ? `${data.sanitationScore}⭐` : '-'}</td>
-                    <td>${data ? `${data.knowledgeScore}⭐` : '-'}</td>
-                    <td style="font-family: monospace; font-weight: bold; color: #4338ca;">${data ? `${data.totalScore}分` : '未存檔'}</td>
-                    <td style="text-align: left; padding-left: 8px;">${data ? data.comment : '-'}</td>
-                  </tr>
-                `;
-              }).join('')}
-            </tbody>
-          </table>
-          <script>
-            window.onload = function() { window.print(); window.close(); };
-          </script>
-        </body>
-        </html>
-      `);
-      printWindow.document.close();
-    };
-
-    window.printAttendanceRecord = () => {
-      const selectEl = document.getElementById('attendance-staff-select');
-      if (selectEl) windowState.selectedCardStaff = selectEl.value;
-      const targetEmp = windowState.employees.find(e => e.name === windowState.selectedCardStaff) || windowState.employees[0];
-      const { days } = getMonthDaysData(windowState.scheduleYear, windowState.scheduleMonth);
-      
-      const empClocks = windowState.clockRecords.filter(c => c.name === targetEmp.name && c.date.startsWith(`${windowState.scheduleYear}-${String(windowState.scheduleMonth).padStart(2,'0')}`));
-      const totalWorkH = empClocks.reduce((acc, c) => acc + (c.hoursWorked || 0), 0).toFixed(1);
-      const totalOTH = empClocks.reduce((acc, c) => acc + (c.otHours || 0), 0).toFixed(1);
-      const lateCount = empClocks.filter(c => c.status.includes('遲到')).length;
-
-      const printWindow = window.open('', '_blank');
-      printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <title>員工每月考勤打卡與出勤簽核表 - ${targetEmp.name}</title>
-          <style>
-            @page { size: A4 portrait; margin: 8mm; }
-            body { font-family: sans-serif; padding: 5px; max-width: 210mm; margin: 0 auto; font-size: 11px; color: #1e293b; background: white; }
-            h1 { text-align: center; font-size: 15px; font-weight: 900; margin: 0 0 3px 0; }
-            .header { text-align: center; border-bottom: 2px solid #0f172a; padding-bottom: 6px; margin-bottom: 8px; }
-            .info-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; background: #f8fafc; padding: 6px 10px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: bold; margin-bottom: 8px; }
-            table { width: 100%; border-collapse: collapse; text-align: center; font-size: 10px; margin-bottom: 8px; }
-            th, td { border: 1px solid #94a3b8; padding: 3px 4px; }
-            th { background: #f1f5f9; font-weight: bold; }
-            .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; background: #f8fafc; padding: 6px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: bold; text-align: center; margin-bottom: 15px; }
-            .sign-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; text-align: center; font-weight: bold; font-size: 11px; margin-top: 10px; }
-            .sign-box { border-top: 2px solid #0f172a; padding-top: 6px; }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1>全錸蒔國際餐飲 員工每月考勤打卡與出勤簽核表</h1>
-            <p style="font-size: 10px; color: #64748b; margin: 0;">統計月份：<strong>${windowState.scheduleYear} 年 ${windowState.scheduleMonth} 月</strong> · 列印日期：${todayStr}</p>
-          </div>
-
-          <div class="info-grid">
-            <div>員工工號：<span style="font-family: monospace;">${targetEmp.id}</span></div>
-            <div>同仁姓名：<span style="color: #312e81; font-weight: 900;">${targetEmp.name}</span></div>
-            <div>職稱崗位：<span>${targetEmp.role}</span></div>
-            <div>雇用類別：<span>${targetEmp.type}</span></div>
-          </div>
-
-          <table>
-            <thead>
-              <tr>
-                <th style="width: 14%;">日期</th>
-                <th style="width: 16%;">預定班別</th>
-                <th style="width: 18%;">☀️ 上班刷卡</th>
-                <th style="width: 18%;">🌙 下班刷卡</th>
-                <th style="width: 14%;">實算工時</th>
-                <th style="text-align: left; padding-left: 6px;">打卡地點 / 備註</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${days.map(m => {
-                const rec = windowState.clockRecords.find(c => c.name === targetEmp.name && c.date === m.dateStr);
-                const isRed = m.isWeekend || m.isHoliday;
-                return `
-                  <tr style="${isRed ? 'background: #fff1f2;' : ''}">
-                    <td style="font-family: monospace; font-weight: bold;">${windowState.scheduleMonth}/${m.day} ${m.weekDay}</td>
-                    <td>${getStaffShiftOnDate(targetEmp.name, m.dateStr)}</td>
-                    <td style="font-family: monospace;">${rec ? rec.clockIn : '--:--'}</td>
-                    <td style="font-family: monospace;">${rec ? rec.clockOut : '--:--'}</td>
-                    <td style="font-family: monospace;">${rec ? `${rec.hoursWorked || 0}h` : '-'}</td>
-                    <td style="text-align: left; padding-left: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px;">${rec ? rec.location : '-'}</td>
-                  </tr>
-                `;
-              }).join('')}
-            </tbody>
-          </table>
-
-          <div class="summary-grid">
-            <div>本月總出勤工時：<span style="font-family: monospace; color: #4338ca;">${totalWorkH} 小時</span></div>
-            <div>本月累計加班：<span style="font-family: monospace; color: #b45309;">${totalOTH} 小時</span></div>
-            <div>本月遲到次數：<span style="font-family: monospace; color: #be123c;">${lateCount} 次</span></div>
-          </div>
-
-          <div class="sign-grid">
-            <div class="sign-box">員工親簽 (Signature)</div>
-            <div class="sign-box">部門主管 / 店長覆核 (Manager)</div>
-            <div class="sign-box">總經理 / 人事核准 (Director)</div>
-          </div>
-
-          <script>
-            window.onload = function() {
-              window.print();
-              window.close();
-            };
-          </script>
-        </body>
-        </html>
-      `);
-      printWindow.document.close();
-    };
-
-    window.printLateReport = () => {
-      const uniqueRecords = getUniqueClockRecords();
-      const printWindow = window.open('', '_blank');
-      printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <title>每月遲到與考勤統計報表</title>
-          <style>
-            body { font-family: sans-serif; padding: 20px; font-size: 11px; color: #1e293b; }
-            h1 { text-align: center; font-size: 17px; font-weight: 900; border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin-bottom: 15px; }
-            table { width: 100%; border-collapse: collapse; text-align: left; }
-            th, td { border: 1px solid #94a3b8; padding: 6px 8px; }
-            th { background: #f1f5f9; }
-          </style>
-        </head>
-        <body>
-          <h1>全錸蒔國際餐飲 - 每月遲到與考勤統計報表</h1>
-          <table>
-            <thead>
-              <tr><th>工號</th><th>同仁姓名</th><th>職稱</th><th>遲到總次數</th><th>說明</th></tr>
-            </thead>
-            <tbody>
-              ${windowState.employees.map(e => {
-                const count = uniqueRecords.filter(c => c.name === e.name && c.status.includes('遲到')).length;
-                return `
-                  <tr>
-                    <td style="font-family: monospace;">${e.id}</td>
-                    <td style="font-weight: bold;">${e.name}</td>
-                    <td>${e.role}</td>
-                    <td style="font-family: monospace; color: #e11d48; font-weight: bold;">${count} 次</td>
-                    <td>${count > 0 ? `扣分 ${count * 5} 分` : '🟢 無扣分'}</td>
-                  </tr>
-                `;
-              }).join('')}
-            </tbody>
-          </table>
-          <script>
-            window.onload = function() { window.print(); window.close(); };
-          </script>
-        </body>
-        </html>
-      `);
-      printWindow.document.close();
-    };
-
-    function maskText(text, type) {
-      if (windowState.isAdmin) return text;
-      if (!text) return '***';
-      if (type === 'pin') return '****';
-      if (type === 'phone') return text.slice(0, 3) + '****' + text.slice(-2);
-      if (type === 'address') return text.slice(0, 6) + '*** (管理員解鎖可見)';
-      return text;
+    function getMonthDaysData(year, month) {
+      const daysInMonth = new Date(year, month, 0).getDate();
+      const days = [];
+      const weekDaysMap = ['日', '一', '二', '三', '四', '五', '六'];
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dateObj = new Date(year, month - 1, d);
+        const dayOfWeek = dateObj.getDay();
+        const dateStr = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        days.push({
+          day: d,
+          weekDay: weekDaysMap[dayOfWeek],
+          dateStr,
+          isWeekend: (dayOfWeek === 0 || dayOfWeek === 6),
+          isHoliday: false
+        });
+      }
+      return { days };
     }
 
-    function shiftTypesConfig() {
-      return [
-        { type: '上班', label: '上班', color: 'bg-sky-100 text-sky-900 border-sky-300 font-bold' },
-        { type: '休假', label: '休假', color: 'bg-rose-100 text-rose-900 border-rose-300 font-bold' },
-        { type: '加班', label: '加班', color: 'bg-amber-200 text-amber-950 border-amber-400 font-extrabold' },
-        { type: '特半', label: '特半', color: 'bg-emerald-100 text-emerald-900 border-emerald-300 font-bold' },
-        { type: '特一', label: '特一', color: 'bg-emerald-200 text-emerald-950 border-emerald-400 font-extrabold' },
-        { type: '事假', label: '事假', color: 'bg-amber-100 text-amber-900 border-amber-300 font-bold' },
-        { type: '病假', label: '病假', color: 'bg-orange-100 text-orange-900 border-orange-300 font-bold' },
-        { type: '陪產', label: '陪產', color: 'bg-purple-100 text-purple-900 border-purple-300 font-bold' },
-        { type: '婚假', label: '婚假', color: 'bg-pink-100 text-pink-900 border-pink-300 font-bold' },
-        { type: '喪假', label: '喪假', color: 'bg-slate-200 text-slate-900 border-slate-400 font-bold' }
-      ];
+    function getStaffShiftOnDate(empName, dateStr) {
+      const [y, m] = dateStr.split('-');
+      const key = `${y}-${Number(m)}-${empName}`;
+      const shifts = windowState.schedules[key];
+      if (shifts) {
+        const dayNum = Number(dateStr.split('-')[2]);
+        return shifts[dayNum - 1] || '上班';
+      }
+      return '上班';
     }
 
-    function getNationalHolidayName(year, month, day) {
-      const dateKey = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-      
-      const fixedHolidays = {
-        [`${year}-01-01`]: '元旦',
-        [`${year}-02-28`]: '和平紀念日',
-        [`${year}-04-04`]: '兒童節',
-        [`${year}-04-05`]: '清明節',
-        [`${year}-05-01`]: '勞動節',
-        [`${year}-09-28`]: '教師節',
-        [`${year}-10-10`]: '國慶日',
-        [`${year}-12-25`]: '行憲紀念日'
-      };
+    // 主畫面渲染核心
+    function render() {
+      const app = document.getElementById('app');
+      if (!app) return;
 
-      if (fixedHolidays[dateKey]) return fixedHolidays[dateKey];
+      const user = windowState.currentUser;
 
-      if (year === 2026) {
-        const h2026 = {
-          '2026-02-13': '春節前夕', '2026-02-16': '農曆初一', '2026-02-17': '農曆初二', 
-          '2026-02-18': '農曆初三', '2026-02-19': '農曆初四', '2026-02-20': '農曆初五', '2026-02-23': '春節補假',
-          '2026-04-03': '兒童節補假', '2026-04-06': '清明節補假',
-          '2026-06-19': '端午節',
-          '2026-09-25': '中秋節',遇到網址開啟空白且員工急需打卡的情況，請先不要慌張。由於我無法直接連線到您的伺服器或修改您的系統程式碼，我為您整理了**最快速的自我排查與緊急應變步驟**，請依照以下順序立即檢查：
+      if (!user) {
+        // 登入頁面
+        app.innerHTML = `
+          <div class="min-h-screen bg-slate-900 flex items-center justify-center p-4">
+            <div class="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full text-center border border-slate-100">
+              <div class="w-20 h-20 mx-auto mb-4 flex items-center justify-center bg-slate-900 rounded-2xl shadow-inner">
+                <img src="${windowState.logoUrl}" alt="Logo" class="w-14 h-14 object-contain">
+              </div>
+              <h1 class="text-2xl font-black text-slate-900 mb-1">全錸蒔國際餐飲</h1>
+              <p class="text-xs font-bold text-slate-500 mb-6">${windowState.slogan}</p>
+              
+              <form onsubmit="window.handleUserLoginSubmit(event)" class="space-y-4 text-left">
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 mb-1">選擇員工身分</label>
+                  <select id="login-staff-sel" class="w-full px-4 py-3 rounded-xl border border-slate-300 font-bold text-slate-800 bg-slate-50 focus:ring-2 focus:ring-slate-900 focus:outline-none">
+                    ${windowState.employees.filter(e => e.status !== '離職').map(e => `<option value="${e.name}">${e.name} (${e.role})</option>`).join('')}
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 mb-1">個人 PIN 密碼 (預設 8888)</label>
+                  <input type="password" id="login-pin" value="8888" maxlength="4" class="w-full px-4 py-3 rounded-xl border border-slate-300 font-bold text-slate-800 bg-slate-50 text-center tracking-widest text-lg focus:ring-2 focus:ring-slate-900 focus:outline-none">
+                </div>
+                <button type="submit" class="w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-black rounded-xl shadow-lg transition-all">
+                  立即登入系統 / 進行打卡
+                </button>
+              </form>
 
----
+              <div class="mt-6 pt-6 border-t border-slate-100 flex justify-between items-center text-xs">
+                <span class="text-slate-400 font-bold">系統版本 v2.5.0</span>
+                <button onclick="window.openAdminLoginModal()" class="text-indigo-600 font-black hover:underline">
+                  ${windowState.isAdmin ? '🔒 管理員已解鎖' : '🔑 管理員登入'}
+                </button>
+              </div>
+            </div>
+          </div>
+          ${renderModal()}
+        `;
+        return;
+      }
 
-### 第一階段：立即排除個人端與網路問題
+      // 已登入主畫面
+      app.innerHTML = `
+        <div class="min-h-screen bg-slate-100 pb-12">
+          <header class="bg-slate-900 text-white sticky top-0 z-40 shadow-md">
+            <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-4">
+              <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-white rounded-xl p-1 flex items-center justify-center">
+                  <img src="${windowState.logoUrl}" alt="Logo" class="w-full h-full object-contain">
+                </div>
+                <div>
+                  <h1 class="text-sm font-black tracking-wider">全錸蒔國際餐飲</h1>
+                  <p class="text-[10px] text-slate-400">${windowState.slogan}</p>
+                </div>
+              </div>
 
-1. **清除瀏覽器快取 (Cache) 或使用無痕模式**
-   * 請員工嘗試使用**無痕視窗 (Incognito mode)** 重新開啟網址。
-   * 如果無痕模式打得開，代表是舊的瀏覽器快取導致衝突，請員工按 `Ctrl + F5` (Windows) 或 `Cmd + Shift + R` (Mac) 強制重新整理網頁。
-2. **更換瀏覽器或裝置**
-   * 建議改用 **Google Chrome** 或 **Microsoft Edge** 重新測試。若手機打不開，改用電腦；反之亦然。
-3. **檢查網址是否正確**
-   * 確認網址是否有拼錯，或是通訊協定是否正確（例如 `https://` 是否漏掉）。
+              <div class="flex items-center gap-1 bg-slate-800 p-1 rounded-xl text-xs font-bold">
+                <button onclick="window.switchModule('announcements')" class="px-3 py-2 rounded-lg transition-all ${windowState.activeModule === 'announcements' ? 'bg-white text-slate-900 shadow' : 'text-slate-300 hover:text-white'}">📢 公告欄</button>
+                <button onclick="window.switchModule('clock')" class="px-3 py-2 rounded-lg transition-all ${windowState.activeModule === 'clock' ? 'bg-white text-slate-900 shadow' : 'text-slate-300 hover:text-white'}">⏰ 上班打卡</button>
+                <button onclick="window.switchModule('tasks')" class="px-3 py-2 rounded-lg transition-all ${windowState.activeModule === 'tasks' ? 'bg-white text-slate-900 shadow' : 'text-slate-300 hover:text-white'}">📋 任務排程</button>
+                <button onclick="window.switchModule('schedule')" class="px-3 py-2 rounded-lg transition-all ${windowState.activeModule === 'schedule' ? 'bg-white text-slate-900 shadow' : 'text-slate-300 hover:text-white'}">📅 門市班表</button>
+                <button onclick="window.switchModule('employees')" class="px-3 py-2 rounded-lg transition-all ${windowState.activeModule === 'employees' ? 'bg-white text-slate-900 shadow' : 'text-slate-300 hover:text-white'}">👥 人事名冊</button>
+              </div>
 
----
+              <div class="flex items-center gap-3">
+                <div class="text-right hidden sm:block">
+                  <div class="text-xs font-black text-emerald-400">${user.name}</div>
+                  <div class="text-[10px] text-slate-400">${user.role}</div>
+                </div>
+                <button onclick="window.userLogout()" class="px-3 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-xl transition-all shadow">
+                  登出
+                </button>
+              </div>
+            </div>
+          </header>
 
-### 第二階段：檢查系統與伺服器端狀況（若您是管理者）
+          <main class="max-w-7xl mx-auto px-4 py-6">
+            ${renderModuleContent()}
+          </main>
+        </div>
+        ${renderModal()}
+      `;
+    }
 
-1. **網域與 SSL 憑證是否過期**
-   * 檢查您的網域名稱（Domain）是否到期未繳費。
-   * 檢查網站的 **SSL 安全憑證** 是否過期，這常會導致瀏覽器因安全性阻擋而直接顯示空白頁面。
-2. **伺服器是否掛載或資源耗盡**
-   * 登入您的雲端主機（如 AWS, GCP, Azure, Heroku）或虛擬主機控制台（cPanel 等），檢查 CPU、記憶體或硬碟空間是否滿載。
-   * 確認 Web 伺服器服務（如 **Nginx / Apache / IIS**）是否正常運行（Service is running）。
-3. **資料庫連線是否中斷**
-   * 打卡系統通常高度依賴資料庫（如 MySQL, PostgreSQL）。若資料庫連線失敗（例如密碼錯誤、連線數爆滿），前端頁面常會直接回傳 500 錯誤或呈現空白。
-4. **檢查最近是否有程式碼異動**
-   * 如果昨晚有部署（Deploy）新版本或修改程式，可能是程式碼發生致命錯誤（Fatal Error）。請檢查伺服器的錯誤日誌（Error Log）。
+    function renderModuleContent() {
+      if (windowState.activeModule === 'announcements') {
+        return `
+          <div class="space-y-6">
+            <div class="flex justify-between items-center bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+              <div>
+                <h2 class="text-lg font-black text-slate-900">📢 總部佈告欄與最新消息</h2>
+                <p class="text-xs text-slate-500 mt-0.5">掌握公司最新動態、獎勵方案與重要行政公告</p>
+              </div>
+              <button onclick="window.openAnnModal()" class="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow transition-all">
+                + 發布新公告
+              </button>
+            </div>
 
----
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              ${windowState.announcements.map(ann => `
+                <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden flex flex-col justify-between">
+                  <div>
+                    ${ann.imageUrl ? `<div class="h-48 w-full overflow-hidden bg-slate-100"><img src="${ann.imageUrl}" class="w-full h-full object-cover"></div>` : ''}
+                    <div class="p-6">
+                      <div class="flex items-center justify-between gap-2 mb-3">
+                        <span class="px-2.5 py-1 bg-rose-100 text-rose-800 font-black text-[10px] rounded-lg">${ann.level}</span>
+                        <span class="text-xs text-slate-400 font-mono">${ann.date} · ${ann.author}</span>
+                      </div>
+                      <h3 class="text-base font-black text-slate-900 mb-2">${ann.title}</h3>
+                      <p class="text-xs text-slate-600 leading-relaxed whitespace-pre-line">${ann.content}</p>
+                    </div>
+                  </div>
+                  <div class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-between items-center text-xs">
+                    <span class="text-slate-400 font-bold">公告編號：#${ann.id}</span>
+                    <button onclick="window.deleteAnnouncement(${ann.id})" class="text-rose-600 hover:underline font-bold">刪除</button>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }
 
-### 第三階段：緊急應變方案（先讓員工順利打卡）
-
-如果系統一時無法修復，為了不耽誤上班考勤，建議立刻啟用以下**備用方案**：
-
-* **人工紙本打卡 / 群組回報**：
-  * 請各部門主管在群組（如 Line / Telegram / Slack）讓員工回報「已到班」，由專人手動記錄。
-* **備用打卡表單**：
-  * 迅速建立一個 **Google 表單 (Google Forms)** 或 **Microsoft Forms**，讓員工填寫姓名與到班時間作為臨時打卡記錄。
+      if (windowState.activeModule === 'clock') {
+        const todayRecords = windowState.clockRecords.filter(c => c.date === todayStr);
+        return `
+          <div class="max-w-2xl mx-auto space-y-6">
+            <div class="bg-white rounded-3xl
