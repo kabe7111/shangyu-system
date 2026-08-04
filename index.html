@@ -9,9 +9,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="全錸蒔餐飲">
   <meta name="theme-color" content="#0f172a">
-  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3448/3448609.png">
+  <link rel="apple-touch-icon" href="[https://cdn-icons-png.flaticon.com/512/3448/3448609.png](https://cdn-icons-png.flaticon.com/512/3448/3448609.png)">
 
-  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="[https://cdn.tailwindcss.com](https://cdn.tailwindcss.com)"></script>
 
   <style>
     @media print {
@@ -46,9 +46,9 @@
   <div id="print-modal-area" class="hidden print:block"></div>
 
   <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-app.js";
-    import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-analytics.js";
-    import { getFirestore, doc, setDoc, getDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-firestore.js";
+    import { initializeApp } from "[https://www.gstatic.com/firebasejs/12.17.0/firebase-app.js](https://www.gstatic.com/firebasejs/12.17.0/firebase-app.js)";
+    import { getAnalytics } from "[https://www.gstatic.com/firebasejs/12.17.0/firebase-analytics.js](https://www.gstatic.com/firebasejs/12.17.0/firebase-analytics.js)";
+    import { getFirestore, doc, setDoc, getDoc, onSnapshot, serverTimestamp } from "[https://www.gstatic.com/firebasejs/12.17.0/firebase-firestore.js](https://www.gstatic.com/firebasejs/12.17.0/firebase-firestore.js)";
 
     const firebaseConfig = {
       apiKey: "AIzaSyARUQy_y-QEPlm7arCJujXQBcFMDTUPBxc",
@@ -70,7 +70,7 @@
     }
 
     const defaultLogoSvg = "data:image/svg+xml;utf8," + encodeURIComponent(`
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 220" width="200" height="220">
+      <svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" viewBox="0 0 200 220" width="200" height="220">
         <path id="arch" d="M 30,62 A 70,70 0 0,1 170,62" fill="none"/>
         <text font-family="Arial, sans-serif" font-size="16" font-weight="900" fill="#000">
           <textPath href="#arch" startOffset="50%" text-anchor="middle">QUAN LAI SHI</textPath>
@@ -92,7 +92,7 @@
     ];
 
     const initialAnnouncements = [
-      { id: 1, title: '🏆 賀！「全錸蒔國際餐飲」榮獲 2026 年度卓越餐飲最佳服務金獎！', level: '🔴 特急', category: '重要', isPinned: true, date: '2026-08-01', author: '總部總經理室', imageUrl: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80', content: '感謝全體同仁秉持真誠理念，發放特別福利津貼以資鼓勵！請店長依規發放予同仁。' }
+      { id: 1, title: '🏆 賀！「全錸蒔國際餐飲」榮獲 2026 年度卓越餐飲最佳服務金獎！', level: '🔴 特急', category: '重要', isPinned: true, date: '2026-08-01', author: '總部總經理室', imageUrl: '[https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80](https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80)', content: '感謝全體同仁秉持真誠理念，發放特別福利津貼以資鼓勵！請店長依規發放予同仁。' }
     ];
 
     const nowToday = new Date();
@@ -266,6 +266,7 @@
           slogan: windowState.slogan,
           updatedAt: serverTimestamp()
         });
+        showToast("☁️ 資料已成功同步至雲端資料庫！");
       } catch (err) {
         console.error("Cloud Save Error: ", err);
       }
@@ -292,7 +293,7 @@
       if (newSlogan !== null && newSlogan.trim() !== "") {
         windowState.slogan = newSlogan.trim();
         saveStateToCloud();
-        showToast("🎉 公司標語已更新！");
+        showToast("🎉 公司標語已更新並即時同步至雲端！");
         render();
       }
     };
@@ -317,7 +318,7 @@
       document.body.appendChild(downloadAnchor);
       downloadAnchor.click();
       downloadAnchor.remove();
-      showToast('💾 系統備份已匯出！');
+      showToast('💾 系統資料備份檔案已成功匯出！');
     };
 
     window.importSystemBackup = (e) => {
@@ -337,10 +338,10 @@
           if (parsed.slogan) windowState.slogan = parsed.slogan;
           
           await saveStateToCloud();
-          showToast('🎉 資料還原成功！');
+          showToast('🎉 資料還原成功！系統已更新至最新狀態。');
           render();
         } catch (err) {
-          showToast('❌ 備份檔案格式錯誤', 'error');
+          showToast('❌ 備份檔案格式錯誤或損毀', 'error');
         }
       };
       reader.readAsText(file);
@@ -351,18 +352,18 @@
       if (!task) return;
       let chkText = '';
       if (task.checklist && task.checklist.length > 0) {
-        chkText = '\n\n📦 **檢查清單**：\n' + task.checklist.map(c => `${c.checked ? '[✓]' : '[☐]'} ${c.item}`).join('\n');
+        chkText = '\n\n📦 **備料/出勤檢查清單**：\n' + task.checklist.map(c => `${c.checked ? '[✓]' : '[☐]'} ${c.item}`).join('\n');
       }
-      const lineText = `📌 【全錸蒔國際餐飲 - 工作交辦】\n\n🔹 主題：${task.title}\n📅 日期：${task.date}\n🕒 時間：${task.startTime} ~ ${task.endTime}\n📍 地點：${task.location}\n👥 負責：${task.assignees.join('、')}\n\n📝 說明：\n${task.content || '無'}${chkText}\n\n收到請回覆「收到 +1」！`;
+      const lineText = `📌 【全錸蒔國際餐飲 - 工作交辦通知】\n\n🔹 任務主題：${task.title}\n🔹 工作分類：${task.category}\n📅 預定日期：${task.date}\n🕒 時間：${task.startTime} ~ ${task.endTime}\n📍 地點：${task.location}\n👥 負責同仁：${task.assignees.join('、')}\n\n📝 工作說明：\n${task.content || '無'}${chkText}\n\n收到請回覆「收到 +1」，謝謝配合！`;
       navigator.clipboard.writeText(lineText).then(() => {
-        showToast('💬 已成功複製 LINE 訊息！');
+        showToast(`💬 已成功複製【${task.title}】交辦訊息！`);
       });
     };
 
     window.copyHealthCheckReminderLineText = (empName, expireDateStr) => {
-      const text = `【全錸蒔國際餐飲 - 體檢提醒】\n\n${empName} 同仁您好：\n您的餐飲從業人員健康檢查效期至【${expireDateStr}】將屆滿/已過期，請於近期前往合格醫療院所完成體檢並繳交報告，謝謝！`;
+      const text = `【全錸蒔國際餐飲 - 人事健康檢查溫馨提醒】\n\n${empName} 同仁您好：\n提醒您，依食品安全衛生管理法與公司規範，您的餐飲從業人員健康檢查效期至【${expireDateStr}】將屆滿/已過期。\n為保障您的排班權益與顧客用餐安全，請於近期前往合格醫療院所完成體檢，並將合格報告交予 HR / 店長備查，謝謝您的配合！`;
       navigator.clipboard.writeText(text).then(() => {
-        showToast(`📋 已複製【${empName}】體檢催辦訊息！`);
+        showToast(`📋 已成功複製【${empName}】體檢催辦訊息！`);
       });
     };
 
@@ -391,7 +392,7 @@
           windowState.logoUrl = uploadEvent.target.result;
           localStorage.setItem('shangyu_logo', windowState.logoUrl);
           saveStateToCloud();
-          showToast('🎉 Logo 已更新！');
+          showToast('🎉 公司品牌 Logo 已更換！');
           render();
         };
         reader.readAsDataURL(file);
@@ -419,23 +420,23 @@
         windowState.currentUser = emp;
         windowState.selectedCardStaff = emp.name;
         localStorage.setItem('shangyu_loginUser', JSON.stringify(emp));
-        showToast(`🎉 歡迎登入！【${emp.name}】`);
+        showToast(`🎉 歡迎登入！【${emp.name}】(${emp.role})`);
         render();
       } else {
-        showToast('❌ PIN 密碼不正確！', 'error');
+        showToast('❌ 個人 PIN 密碼不正確！', 'error');
       }
     };
 
     window.userLogout = () => {
       windowState.currentUser = null;
       localStorage.removeItem('shangyu_loginUser');
-      showToast('已安全登出');
+      showToast('已安全登出系統');
       render();
     };
 
     window.executeClockAction = (type) => {
       if (windowState.clockMode === 'businessTrip' && !windowState.tripReason.trim()) {
-        return showToast('⚠️ 請填寫外勤地點與事由！', 'warning');
+        return showToast('⚠️ 請務必填寫外勤地點與事由！', 'warning');
       }
       const timeStr = new Date().toLocaleTimeString('zh-TW', { hour12: false }).slice(0, 5);
       const isLate = type === 'in' && timeStr > '09:00';
@@ -448,7 +449,8 @@
         const [inH, inM] = existingIn.clockIn.split(':').map(Number);
         const [outH, outM] = timeStr.split(':').map(Number);
         const diffMin = Math.max(0, (outH * 60 + outM) - (inH * 60 + inM));
-        hoursWorked = Math.round((diffMin / 60) * 2) / 2;
+        const rawHours = diffMin / 60;
+        hoursWorked = Math.round(rawHours * 2) / 2;
         if (hoursWorked > 9.0) otHours = hoursWorked - 9.0;
       }
 
@@ -462,11 +464,10 @@
       });
       saveStateToCloud();
       showToast(`🎉 【${windowState.currentUser.name}】打卡成功！(工時：${hoursWorked}h)`);
-      render();
     };
 
     window.openEditClockModal = (recordId) => {
-      if (!windowState.isAdmin) return showToast('🔒 請先解鎖管理員權限！', 'warning');
+      if (!windowState.isAdmin) return showToast('🔒 請先解鎖管理員權限才能修改打卡！', 'warning');
       const rec = windowState.clockRecords.find(c => c.id === recordId);
       if (!rec) return;
       windowState.modalData = { ...rec };
@@ -499,13 +500,7 @@
 
       saveStateToCloud();
       windowState.activeModal = null;
-      showToast('✅ 打卡記錄已更新！');
-      render();
-    };
-
-    window.openAdminLoginModal = () => {
-      windowState.activeModal = 'admin';
-      render();
+      showToast('✅ 打卡記錄已成功修改並同步至雲端！');
     };
 
     window.handleAdminLoginSubmit = (e) => {
@@ -516,7 +511,7 @@
         windowState.activeModal = null;
         showToast('🎉 管理員權限解鎖成功！');
       } else {
-        showToast('❌ PIN 碼錯誤', 'error');
+        showToast('❌ 管理員 PIN 碼錯誤', 'error');
       }
       render();
     };
@@ -528,7 +523,7 @@
 
     window.openCreateTaskModal = (dateStr) => {
       const targetDate = dateStr || windowState.selectedTaskDate || todayStr;
-      windowState.modalData = { date: targetDate, title: '', category: '調理包製作', repeat: '單次', assignees: [windowState.employees[0]?.name || '王聖銓'], startTime: '09:00', endTime: '12:00', location: '台北總店', content: '', checklist: [] };
+      windowState.modalData = { date: targetDate, title: '', category: '調理包製作', repeat: '單次', assignees: [windowState.employees.filter(e => e.status !== '離職')[0]?.name || '王聖銓'], startTime: '09:00', endTime: '12:00', location: '台北總店', content: '', checklist: [] };
       windowState.activeModal = 'taskModal';
       render();
     };
@@ -581,263 +576,4 @@
       }
     };
 
-    window.deleteTask = (taskId) => {
-      windowState.tasks = windowState.tasks.filter(t => t.id !== taskId);
-      saveStateToCloud();
-      showToast('🗑️ 行程已刪除！');
-      render();
-    };
-
-    window.toggleAssigneeInModal = (name) => {
-      window.syncModalDataFromInputs();
-      const list = windowState.modalData.assignees || [];
-      if (list.includes(name)) {
-        if (list.length > 1) windowState.modalData.assignees = list.filter(a => a !== name);
-      } else {
-        windowState.modalData.assignees = [...list, name];
-      }
-      render();
-    };
-
-    window.handleSaveTaskSubmit = (e) => {
-      e.preventDefault();
-      const payload = {
-        title: document.getElementById('task-title').value,
-        category: document.getElementById('task-category').value,
-        repeat: document.getElementById('task-repeat').value,
-        content: document.getElementById('task-content').value,
-        date: document.getElementById('task-date').value,
-        startTime: document.getElementById('task-start').value,
-        endTime: document.getElementById('task-end').value,
-        location: document.getElementById('task-location').value,
-        assignees: windowState.modalData.assignees || [windowState.employees[0].name],
-        checklist: windowState.modalData.checklist || []
-      };
-
-      if (windowState.modalData.id) {
-        windowState.tasks = windowState.tasks.map(t => t.id === windowState.modalData.id ? { ...t, ...payload } : t);
-      } else {
-        windowState.tasks.unshift({ id: Date.now(), status: '待處理', ...payload });
-      }
-      saveStateToCloud();
-      windowState.activeModal = null;
-      showToast('✅ 工作行程已儲存！');
-      render();
-    };
-
-    window.openCreateEmpModal = () => {
-      windowState.modalData = { id: `E0${windowState.employees.length + 1}`, name: '', role: '門市服務員', type: '正職員工', status: '在職', healthCheckDate: todayStr, pin: '8888', phone: '', address: '', leaveEntitled: 7, leaveUsed: 0, note: '' };
-      windowState.activeModal = 'empModal';
-      render();
-    };
-
-    window.openEditEmpModal = (empId) => {
-      const emp = windowState.employees.find(e => e.id === empId);
-      if (emp) {
-        windowState.modalData = { ...emp };
-        windowState.activeModal = 'empModal';
-        render();
-      }
-    };
-
-    window.handleSaveEmpSubmit = (e) => {
-      e.preventDefault();
-      const payload = {
-        id: document.getElementById('emp-id').value,
-        name: document.getElementById('emp-name').value,
-        role: document.getElementById('emp-role').value,
-        type: document.getElementById('emp-type').value,
-        status: document.getElementById('emp-status').value,
-        healthCheckDate: document.getElementById('emp-health-date').value,
-        birthday: document.getElementById('emp-birthday').value,
-        joinDate: document.getElementById('emp-joindate').value,
-        phone: document.getElementById('emp-phone').value,
-        pin: document.getElementById('emp-pin').value,
-        leaveEntitled: Number(document.getElementById('emp-leave-entitled').value) || 0,
-        leaveUsed: Number(document.getElementById('emp-leave-used').value) || 0,
-        emergencyContact: document.getElementById('emp-emg').value,
-        emergencyPhone: document.getElementById('emp-emgphone').value,
-        address: document.getElementById('emp-address').value,
-        note: document.getElementById('emp-note').value,
-        dept: '門市/外場'
-      };
-
-      const idx = windowState.employees.findIndex(e => e.id === payload.id);
-      if (idx >= 0) {
-        windowState.employees[idx] = { ...windowState.employees[idx], ...payload };
-      } else {
-        windowState.employees.push(payload);
-      }
-      saveStateToCloud();
-      windowState.activeModal = null;
-      showToast('✅ 員工資料已儲存！');
-      render();
-    };
-
-    window.handleSaveAnnSubmit = (e) => {
-      e.preventDefault();
-      const title = document.getElementById('ann-title-input').value;
-      const level = document.getElementById('ann-level-sel').value;
-      const content = document.getElementById('ann-content-input').value;
-      const author = document.getElementById('ann-author-input').value.trim() || '總部';
-
-      windowState.announcements.unshift({
-        id: Date.now(), title, level, category: '重要', isPinned: false,
-        date: todayStr, author, content, imageUrl: ''
-      });
-      saveStateToCloud();
-      windowState.activeModal = null;
-      showToast('✅ 成功發布新公告！');
-      render();
-    };
-
-    window.handleShiftSelectChange = (empName, dayIdx, selectElement) => {
-      if (!windowState.isAdmin) {
-        alert('🔒 請先解鎖管理員權限！');
-        render();
-        return;
-      }
-      const nextShift = selectElement.value;
-      const key = `${windowState.scheduleYear}-${windowState.scheduleMonth}-${empName}`;
-      const { days } = getMonthDaysData(windowState.scheduleYear, windowState.scheduleMonth);
-      const existingShifts = windowState.schedules[key] || days.map(() => '上班');
-      const updated = [...existingShifts];
-      updated[dayIdx] = nextShift;
-      windowState.schedules[key] = updated;
-      saveStateToCloud();
-      showToast(`⚡ 已更新【${empName}】班別`);
-      render();
-    };
-
-    window.handleAttendanceStaffChange = (selectEl) => {
-      windowState.selectedCardStaff = selectEl.value;
-      render();
-    };
-
-    window.shiftMonth = (offset) => {
-      let m = windowState.scheduleMonth + offset;
-      let y = windowState.scheduleYear;
-      if (m > 12) { m = 1; y += 1; }
-      if (m < 1) { m = 12; y -= 1; }
-      windowState.scheduleMonth = m;
-      windowState.scheduleYear = y;
-      render();
-    };
-
-    window.jumpToCurrentMonth = () => {
-      const d = new Date();
-      windowState.scheduleYear = d.getFullYear();
-      windowState.scheduleMonth = d.getMonth() + 1;
-      showToast("📍 已回到今天與當月");
-      render();
-    };
-
-    window.printAttendanceRecord = () => {
-      const selectEl = document.getElementById('attendance-staff-select');
-      if (selectEl) windowState.selectedCardStaff = selectEl.value;
-      const targetEmp = windowState.employees.find(e => e.name === windowState.selectedCardStaff) || windowState.employees[0];
-      const { days } = getMonthDaysData(windowState.scheduleYear, windowState.scheduleMonth);
-      const empClocks = windowState.clockRecords.filter(c => c.name === targetEmp.name && c.date.startsWith(`${windowState.scheduleYear}-${String(windowState.scheduleMonth).padStart(2,'0')}`));
-      const totalWorkH = empClocks.reduce((acc, c) => acc + (c.hoursWorked || 0), 0).toFixed(1);
-      const totalOTH = empClocks.reduce((acc, c) => acc + (c.otHours || 0), 0).toFixed(1);
-      const lateCount = empClocks.filter(c => c.status.includes('遲到')).length;
-
-      const printWindow = window.open('', '_blank');
-      printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <title>員工每月考勤打卡與出勤簽核表 - ${targetEmp.name}</title>
-          <style>
-            @page { size: A4 portrait; margin: 8mm; }
-            body { font-family: sans-serif; padding: 5px; max-width: 210mm; margin: 0 auto; font-size: 11px; color: #1e293b; background: white; }
-            h1 { text-align: center; font-size: 15px; font-weight: 900; margin: 0 0 3px 0; }
-            .header { text-align: center; border-bottom: 2px solid #0f172a; padding-bottom: 6px; margin-bottom: 8px; }
-            .info-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; background: #f8fafc; padding: 6px 10px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: bold; margin-bottom: 8px; }
-            table { width: 100%; border-collapse: collapse; text-align: center; font-size: 10px; margin-bottom: 8px; }
-            th, td { border: 1px solid #94a3b8; padding: 3px 4px; }
-            th { background: #f1f5f9; font-weight: bold; }
-            .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; background: #f8fafc; padding: 6px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: bold; text-align: center; margin-bottom: 15px; }
-            .sign-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; text-align: center; font-weight: bold; font-size: 11px; margin-top: 10px; }
-            .sign-box { border-top: 2px solid #0f172a; padding-top: 6px; }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1>全錸蒔國際餐飲 員工每月考勤打卡與出勤簽核表</h1>
-            <p style="font-size: 10px; color: #64748b; margin: 0;">統計月份：<strong>${windowState.scheduleYear} 年 ${windowState.scheduleMonth} 月</strong></p>
-          </div>
-          <div class="info-grid">
-            <div>員工工號：<span>${targetEmp.id}</span></div>
-            <div>同仁姓名：<span>${targetEmp.name}</span></div>
-            <div>職稱崗位：<span>${targetEmp.role}</span></div>
-            <div>雇用類別：<span>${targetEmp.type}</span></div>
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th>日期</th><th>預定班別</th><th>上班刷卡</th><th>下班刷卡</th><th>實算工時</th><th>打卡地點</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${days.map(m => {
-                const rec = windowState.clockRecords.find(c => c.name === targetEmp.name && c.date === m.dateStr);
-                return `
-                  <tr>
-                    <td>${windowState.scheduleMonth}/${m.day} ${m.weekDay}</td>
-                    <td>${getStaffShiftOnDate(targetEmp.name, m.dateStr)}</td>
-                    <td>${rec ? rec.clockIn : '--:--'}</td>
-                    <td>${rec ? rec.clockOut : '--:--'}</td>
-                    <td>${rec ? `${rec.hoursWorked || 0}h` : '-'}</td>
-                    <td>${rec ? rec.location : '-'}</td>
-                  </tr>
-                `;
-              }).join('')}
-            </tbody>
-          </table>
-          <div class="summary-grid">
-            <div>總出勤工時：${totalWorkH} 小時</div>
-            <div>累計加班：${totalOTH} 小時</div>
-            <div>遲到次數：${lateCount} 次</div>
-          </div>
-          <div class="sign-grid">
-            <div class="sign-box">員工親簽</div>
-            <div class="sign-box">部門主管覆核</div>
-            <div class="sign-box">總經理核准</div>
-          </div>
-          <script>window.onload = function() { window.print(); window.close(); };</script>
-        </body>
-        </html>
-      `);
-      printWindow.document.close();
-    };
-
-    function renderModal() {
-      const modal = windowState.activeModal;
-      if (!modal) return '';
-      return `
-        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6">
-            ${modal === 'admin' ? `
-              <h3 class="text-base font-black text-slate-900 mb-3">🔑 管理員解鎖</h3>
-              <form onsubmit="window.handleAdminLoginSubmit(event)" class="space-y-3">
-                <input type="password" id="admin-pin-input" maxlength="4" placeholder="請輸入密碼 8888" class="w-full px-4 py-3 rounded-xl border text-center font-mono text-lg tracking-widest focus:outline-none focus:ring-2 focus:ring-slate-900">
-                <div class="flex gap-2">
-                  <button type="submit" class="flex-1 py-3 bg-slate-900 text-white font-bold rounded-xl text-xs">確認</button>
-                  <button type="button" onclick="window.closeModal()" class="flex-1 py-3 bg-slate-100 text-slate-700 font-bold rounded-xl text-xs">取消</button>
-                </div>
-              </form>
-            ` : `
-              <h3 class="text-base font-black text-slate-900 mb-3">系統視窗</h3>
-              <button onclick="window.closeModal()" class="w-full py-3 bg-slate-900 text-white font-bold rounded-xl text-xs">關閉</button>
-            `}
-          </div>
-        </div>
-      `;
-    }
-
-    initFirebaseSync();
-  </script>
-</body>
-</html>
+    window.deleteTask = (taskId)
