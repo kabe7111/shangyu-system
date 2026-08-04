@@ -23,11 +23,11 @@
         top: 0 !important;
         width: 100% !important;
         background: white !important;
-        padding: 0 !important;
+        padding: 5px !important;
         margin: 0 !important;
       }
       .no-print { display: none !important; }
-      @page { size: A4 portrait; margin: 6mm; }
+      @page { size: A4 portrait; margin: 10mm; }
     }
     .shift-select {
       -webkit-appearance: none;
@@ -69,7 +69,7 @@
       console.warn("Firebase Init Warning: ", e);
     }
 
-    const defaultLogoSvg = `data:image/svg+xml;utf8,${encodeURIComponent(`
+    const defaultLogoSvg = "data:image/svg+xml;utf8," + encodeURIComponent(`
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 220" width="200" height="220">
         <path id="arch" d="M 30,62 A 70,70 0 0,1 170,62" fill="none"/>
         <text font-family="Arial, sans-serif" font-size="16" font-weight="900" fill="#000">
@@ -80,7 +80,7 @@
         <path d="M 100,85 L 115,85 M 85,135 L 105,135" stroke="#000" stroke-width="5" stroke-linecap="round"/>
         <text x="100" y="208" font-family="Georgia, serif" font-size="16" font-weight="bold" fill="#000" text-anchor="middle">Since 2022</text>
       </svg>
-    `)}`;
+    `);
 
     const initialEmployees = [
       { id: 'E001', name: '王聖銓', role: '亞太十大菁英名廚 / 總店長', dept: '門市/外場', type: '正職員工', status: '在職', healthCheckDate: '2025-06-15', pin: '8888', phone: '0912-345-678', emergencyContact: '王太太 (妻子)', emergencyPhone: '0911-111-222', address: '台北市信義區忠孝東路五段 100 號 5 樓', birthday: '1988-10-15', joinDate: '2022-03-15', leaveEntitled: 10, leaveUsed: 4.5, note: '擅長製作法式位上私廚料理，負責門市全盤營運' },
@@ -101,7 +101,7 @@
     const todayStr = `${curYear}-${String(curMonth).padStart(2,'0')}-${String(nowToday.getDate()).padStart(2,'0')}`;
 
     const initialTasks = [
-      { id: 1, title: '當日暑期備料與調理包生產', content: '高溫滅菌調理包封口檢測與冷凍庫存盤點', category: '調理包製作', repeat: '單次', assignees: ['王聖銓', '張阿強', '黃智勝'], checklist: [{ item: '高溫滅菌袋盤点', checked: true }, { item: '真空封口機測試', checked: false }], date: todayStr, startTime: '08:30', endTime: '12:00', location: '桃園中央央廚', status: '待處理', completedBy: '' }
+      { id: 1, title: '當日暑期備料與調理包生產', content: '高溫滅菌調理包封口檢測與冷凍庫存盤點', category: '調理包製作', repeat: '單次', assignees: ['王聖銓', '張阿強', '黃智勝'], checklist: [{ item: '高溫滅菌袋盤点', checked: true }, { item: '真空封口機測試', checked: false }], date: todayStr, startTime: '08:30', endTime: '12:00', location: '中央廚房', status: '待處理', completedBy: '', fileUrl: '', fileName: '' }
     ];
 
     const initialClockRecords = [
@@ -126,7 +126,7 @@
       selectedAnnualEmp: '王聖銓',
       selectedAnnFilter: '全部',
       clockMode: 'store',
-      tripReason: '桃園央廚排產',
+      tripReason: '中央廚房排產',
       employees: initialEmployees,
       announcements: initialAnnouncements,
       tasks: initialTasks,
@@ -354,7 +354,8 @@
       if (task.checklist && task.checklist.length > 0) {
         chkText = '\n\n📦 **備料/出勤檢查清單**：\n' + task.checklist.map(c => `${c.checked ? '[✓]' : '[☐]'} ${c.item}`).join('\n');
       }
-      const lineText = `📌 【全錸蒔國際餐飲 - 工作交辦通知】\n\n🔹 任務主題：${task.title}\n🔹 工作分類：${task.category}\n📅 預定日期：${task.date}\n🕒 時間：${task.startTime} ~ ${task.endTime}\n📍 地點：${task.location}\n👥 負責同仁：${task.assignees.join('、')}\n\n📝 工作說明：\n${task.content || '無'}${chkText}\n\n收到請回覆「收到 +1」，謝謝配合！`;
+      let fileText = task.fileUrl ? `\n\n📎 附加檔案：${task.fileName || '查看附件'}` : '';
+      const lineText = `📌 【全錸蒔國際餐飲 - 工作交辦通知】\n\n🔹 任務主題：${task.title}\n🔹 工作分類：${task.category}\n📅 預定日期：${task.date}\n🕒 時間：${task.startTime} ~ ${task.endTime}\n📍 地點：${task.location}\n👥 負責同仁：${task.assignees.join('、')}\n\n📝 工作說明：\n${task.content || '無'}${chkText}${fileText}\n\n收到請回覆「收到 +1」，謝謝配合！`;
       navigator.clipboard.writeText(lineText).then(() => {
         showToast(`💬 已成功複製【${task.title}】交辦訊息！`);
       });
@@ -405,6 +406,20 @@
         const reader = new FileReader();
         reader.onload = (uploadEvent) => {
           windowState.modalData.imageUrl = uploadEvent.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+    };
+
+    // 新增：處理工作排程任務檔案上傳 (圖片或 PDF)
+    window.handleTaskFileUploadInModal = (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (uploadEvent) => {
+          windowState.modalData.fileUrl = uploadEvent.target.result;
+          windowState.modalData.fileName = file.name;
+          showToast(`📎 檔案【${file.name}】已成功載入！`);
         };
         reader.readAsDataURL(file);
       }
@@ -523,7 +538,7 @@
 
     window.openCreateTaskModal = (dateStr) => {
       const targetDate = dateStr || windowState.selectedTaskDate || todayStr;
-      windowState.modalData = { date: targetDate, title: '', category: '調理包製作', repeat: '單次', assignees: [windowState.employees.filter(e => e.status !== '離職')[0]?.name || '王聖銓'], startTime: '09:00', endTime: '12:00', location: '台北總店', content: '', checklist: [] };
+      windowState.modalData = { date: targetDate, title: '', category: '調理包製作', repeat: '單次', assignees: [windowState.employees.filter(e => e.status !== '離職')[0]?.name || '王聖銓'], startTime: '09:00', endTime: '12:00', location: '中央廚房', content: '', checklist: [], fileUrl: '', fileName: '' };
       windowState.activeModal = 'taskModal';
       render();
     };
@@ -616,7 +631,9 @@
         endTime: document.getElementById('task-end').value,
         location: document.getElementById('task-location').value,
         assignees: windowState.modalData.assignees || [windowState.employees[0].name],
-        checklist: windowState.modalData.checklist || []
+        checklist: windowState.modalData.checklist || [],
+        fileUrl: windowState.modalData.fileUrl || '',
+        fileName: windowState.modalData.fileName || ''
       };
 
       if (windowState.modalData.id) {
@@ -627,6 +644,7 @@
       saveStateToCloud();
       windowState.activeModal = null;
       showToast('✅ 工作行程已儲存！');
+      render();
     };
 
     window.openCreateEmpModal = () => {
@@ -755,10 +773,11 @@
       showToast('✅ 成功發布新公告！');
     };
 
+    // 修復：排班點擊變更時採用區域局部更新，不造成頁面跳動或回彈
     window.handleShiftSelectChange = (empName, dayIdx, selectElement) => {
       if (!windowState.isAdmin) {
         alert('🔒 請先解鎖管理員權限才能修改班表！');
-        render();
+        selectElement.value = selectElement.defaultValue;
         return;
       }
       
@@ -766,7 +785,7 @@
       const hcInfo = getHealthCheckInfo(emp?.healthCheckDate);
       if (emp && hcInfo.isExpired) {
         alert(`🚨 警告：【${empName}】體檢已過期！依規禁止排班上班。`);
-        render();
+        selectElement.value = selectElement.defaultValue;
         return;
       }
 
@@ -780,7 +799,6 @@
       windowState.schedules[key] = updated;
       saveStateToCloud();
       showToast(`⚡ 已更新【${empName}】${windowState.scheduleMonth}/${days[dayIdx].day} 班別為：${nextShift}`);
-      render();
     };
 
     window.handleAttendanceStaffChange = (selectEl) => {
@@ -810,7 +828,7 @@
               currDate.setMonth(currDate.getMonth() + 1);
             } else if (task.repeat === '每兩個月') {
               currDate.setMonth(currDate.getMonth() + 2);
-            } else if (task.repeat === '每三個') {
+            } else if (task.repeat === '每三個月') {
               currDate.setMonth(currDate.getMonth() + 3);
             } else if (task.repeat === '每半年') {
               currDate.setMonth(currDate.getMonth() + 6);
@@ -836,7 +854,9 @@
                 assignees: [...task.assignees],
                 checklist: duplicatedChecklist,
                 status: '待處理',
-                completedBy: ''
+                completedBy: '',
+                fileUrl: task.fileUrl || '',
+                fileName: task.fileName || ''
               });
               showToast(`🔁 任務已完成，並自動幫您生成下一週期 (${nextDateStr}) 的新任務！`);
             }
@@ -846,6 +866,7 @@
 
           saveStateToCloud();
         }
+        render();
       }
     };
 
@@ -854,6 +875,7 @@
       if (task && task.checklist && task.checklist[chkIdx]) {
         task.checklist[chkIdx].checked = !task.checklist[chkIdx].checked;
         saveStateToCloud();
+        render();
       }
     };
 
@@ -889,6 +911,7 @@
       });
       saveStateToCloud();
       showToast('⚡ 全店已同步帶入標準班表（國定假日與週末自動顯示休假）！');
+      render();
     };
 
     window.printSingleEmployeeRoster = (empId) => {
@@ -1003,58 +1026,63 @@
 
       const printArea = document.getElementById('print-modal-area');
       printArea.innerHTML = `
-        <div style="font-family: sans-serif; padding: 10px; max-width: 210mm; margin: 0 auto; font-size: 11px; color: #1e293b;">
-          <div style="text-align: center; border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin-bottom: 10px;">
-            <h1 style="font-size: 16px; font-weight: 900; margin: 0 0 4px 0;">全錸蒔國際餐飲 員工每月考勤打卡與出勤簽核表</h1>
-            <p style="font-size: 10px; color: #64748b; margin: 0;">統計月份：<strong>${windowState.scheduleYear} 年 ${windowState.scheduleMonth} 月</strong> · 列印日期：${todayStr}</p>
+        <div class="p-4 space-y-3 bg-white text-slate-900 max-w-[210mm] mx-auto text-[11px] leading-tight">
+          <div class="text-center border-b-2 border-slate-900 pb-2 space-y-0.5">
+            <h1 class="text-lg font-black tracking-wider">全錸蒔國際餐飲 員工每月考勤打卡與出勤簽核表</h1>
+            <p class="text-[10px] text-slate-600">統計月份：<strong class="font-mono text-slate-900">${windowState.scheduleYear} 年 ${windowState.scheduleMonth} 月</strong> · 列印日期：${todayStr}</p>
           </div>
 
-          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; background: #f8fafc; padding: 8px 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-weight: bold; margin-bottom: 10px;">
-            <div>員工工號：<span style="font-family: monospace;">${targetEmp.id}</span></div>
-            <div>同仁姓名：<span style="color: #312e81; font-weight: 900;">${targetEmp.name}</span></div>
+          <div class="grid grid-cols-4 gap-2 bg-slate-50 p-2 rounded-lg border border-slate-300 font-bold text-[11px]">
+            <div>員工工號：<span class="font-mono">${targetEmp.id}</span></div>
+            <div>同仁姓名：<span class="text-indigo-950 font-black">${targetEmp.name}</span></div>
             <div>職稱崗位：<span>${targetEmp.role}</span></div>
             <div>雇用類別：<span>${targetEmp.type}</span></div>
           </div>
 
-          <table style="width: 100%; border-collapse: collapse; text-align: center; font-size: 10px; margin-bottom: 10px;">
-            <thead>
-              <tr style="background: #f1f5f9;">
-                <th style="border: 1px solid #94a3b8; padding: 4px; width: 14%;">日期</th>
-                <th style="border: 1px solid #94a3b8; padding: 4px; width: 16%;">預定班別</th>
-                <th style="border: 1px solid #94a3b8; padding: 4px; width: 18%;">☀️ 上班刷卡</th>
-                <th style="border: 1px solid #94a3b8; padding: 4px; width: 18%;">🌙 下班刷卡</th>
-                <th style="border: 1px solid #94a3b8; padding: 4px; width: 16%;">實算工時</th>
-                <th style="border: 1px solid #94a3b8; padding: 4px; text-align: left; padding-left: 6px;">打卡地點 / 備註</th>
+          <table class="w-full text-[10px] text-center border-collapse border border-slate-400">
+            <thead class="bg-slate-100 font-bold">
+              <tr>
+                <th class="p-1 border border-slate-400 w-14">日期</th>
+                <th class="p-1 border border-slate-400 w-16">預定班別</th>
+                <th class="p-1 border border-slate-400 w-20">☀️ 上班刷卡</th>
+                <th class="p-1 border border-slate-400 w-20">🌙 下班刷卡</th>
+                <th class="p-1 border border-slate-400 w-20">實算工時</th>
+                <th class="p-1 border border-slate-400 text-left">打卡地點 / 備註</th>
               </tr>
             </thead>
             <tbody>
               ${days.map(m => {
                 const rec = windowState.clockRecords.find(c => c.name === targetEmp.name && c.date === m.dateStr);
-                const isRed = m.isWeekend || m.isHoliday;
                 return `
-                  <tr style="${isRed ? 'background: #fff1f2;' : ''}">
-                    <td style="border: 1px solid #94a3b8; padding: 3px; font-family: monospace; font-weight: bold;">${windowState.scheduleMonth}/${m.day} ${m.weekDay}</td>
-                    <td style="border: 1px solid #94a3b8; padding: 3px;">${getStaffShiftOnDate(targetEmp.name, m.dateStr)}</td>
-                    <td style="border: 1px solid #94a3b8; padding: 3px; font-family: monospace;">${rec ? rec.clockIn : '--:--'}</td>
-                    <td style="border: 1px solid #94a3b8; padding: 3px; font-family: monospace;">${rec ? rec.clockOut : '--:--'}</td>
-                    <td style="border: 1px solid #94a3b8; padding: 3px; font-family: monospace;">${rec ? `${rec.hoursWorked || 0}h` : '-'}</td>
-                    <td style="border: 1px solid #94a3b8; padding: 3px; text-align: left; padding-left: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px;">${rec ? rec.location : '-'}</td>
+                  <tr class="${m.isWeekend || m.isHoliday ? 'bg-rose-50/30' : ''}">
+                    <td class="p-1 border border-slate-400 font-mono font-bold">${windowState.scheduleMonth}/${m.day} ${m.weekDay}</td>
+                    <td class="p-1 border border-slate-400">${getStaffShiftOnDate(targetEmp.name, m.dateStr)}</td>
+                    <td class="p-1 border border-slate-400 font-mono">${rec ? rec.clockIn : '--:--'}</td>
+                    <td class="p-1 border border-slate-400 font-mono">${rec ? rec.clockOut : '--:--'}</td>
+                    <td class="p-1 border border-slate-400 font-mono">${rec ? `${rec.hoursWorked || 0}h` : '-'}</td>
+                    <td class="p-1 border border-slate-400 text-left truncate">${rec ? rec.location : '-'}</td>
                   </tr>
                 `;
               }).join('')}
             </tbody>
           </table>
 
-          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; background: #f8fafc; padding: 8px; border-radius: 8px; border: 1px solid #cbd5e1; font-weight: bold; text-align: center; margin-bottom: 25px;">
-            <div>本月總出勤工時：<span style="font-family: monospace; color: #4338ca;">${totalWorkH} 小時</span></div>
-            <div>本月累計加班：<span style="font-family: monospace; color: #b45309;">${totalOTH} 小時</span></div>
-            <div>本月遲到次數：<span style="font-family: monospace; color: #be123c;">${lateCount} 次</span></div>
+          <div class="grid grid-cols-3 gap-2 bg-slate-50 p-2 rounded-lg border border-slate-300 font-bold text-center text-[11px]">
+            <div>本月總出勤工時：<span class="font-mono text-indigo-700">${totalWorkH} 小時</span></div>
+            <div>本月累計加班：<span class="font-mono text-amber-700">${totalOTH} 小時</span></div>
+            <div>本月遲到次數：<span class="font-mono text-rose-600">${lateCount} 次</span></div>
           </div>
 
-          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; text-align: center; font-weight: bold; font-size: 11px;">
-            <div style="border-top: 2px solid #0f172a; padding-top: 6px;">員工親簽 (Signature)</div>
-            <div style="border-top: 2px solid #0f172a; padding-top: 6px;">部門主管 / 店長覆核 (Manager)</div>
-            <div style="border-top: 2px solid #0f172a; padding-top: 6px;">總經理 / 人事核准 (Director)</div>
+          <div class="grid grid-cols-3 gap-6 pt-6 text-center font-bold text-[11px]">
+            <div class="border-t-2 border-slate-900 pt-1.5">
+              <p>員工親簽 (Signature)</p>
+            </div>
+            <div class="border-t-2 border-slate-900 pt-1.5">
+              <p>部門主管 / 店長覆核 (Manager)</p>
+            </div>
+            <div class="border-t-2 border-slate-900 pt-1.5">
+              <p>總經理 / 人事核准 (Director)</p>
+            </div>
           </div>
         </div>
       `;
@@ -1478,6 +1506,13 @@
                     <h4 class="font-black text-amber-300 text-sm cursor-pointer hover:underline" ondblclick="openEditTaskModal(${t.id})" title="雙擊編輯此活動">${t.title} ✏️</h4>
                     <p class="text-slate-200 bg-black/30 p-2 rounded-lg border border-white/10">${t.content}</p>
 
+                    ${t.fileUrl ? `
+                      <div class="bg-black/20 p-2.5 rounded-lg border border-indigo-300/30 flex items-center justify-between">
+                        <span class="text-xs text-amber-200 font-bold">📎 附件：${t.fileName || '查看檔案'}</span>
+                        <a href="${t.fileUrl}" target="_blank" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded font-bold text-[10px]">開啟/下載檔案</a>
+                      </div>
+                    ` : ''}
+
                     ${t.checklist && t.checklist.length > 0 ? `
                       <div class="bg-black/20 p-2 rounded-lg border border-amber-300/30 space-y-1">
                         <span class="font-extrabold text-amber-300 text-[10px]">📦 備料檢查清單：</span>
@@ -1579,6 +1614,13 @@
                     <h4 class="font-extrabold text-slate-900 text-base">${t.title} ✏️ <span class="text-[10px] text-indigo-600 font-normal">(雙擊可修改)</span></h4>
                     <p class="text-slate-600 bg-white p-2.5 rounded-xl border">${t.content}</p>
 
+                    ${t.fileUrl ? `
+                      <div class="bg-slate-100 p-2.5 rounded-xl border border-slate-200 flex items-center justify-between">
+                        <span class="text-xs text-slate-700 font-bold">📎 附加檔案：${t.fileName || '查看檔案'}</span>
+                        <a href="${t.fileUrl}" target="_blank" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded font-bold text-[10px]">開啟/下載檔案</a>
+                      </div>
+                    ` : ''}
+
                     ${t.checklist && t.checklist.length > 0 ? `
                       <div class="bg-amber-50/60 p-2.5 rounded-xl border border-amber-200 space-y-1 my-1" onclick="event.stopPropagation()">
                         <span class="font-extrabold text-amber-950 text-[11px]">📦 備料檢查清單：</span>
@@ -1634,7 +1676,7 @@
             <table class="w-full text-xs min-w-[1250px] border-collapse">
               <thead>
                 <tr class="bg-slate-100 border-b text-slate-700">
-                  <th class="p-2.5 w-36 border-r sticky left-0 bg-slate-100 z-20">同仁姓名</th>
+                  <th class="p-2.5 w-44 border-r sticky left-0 bg-slate-100 z-20">同仁姓名 / 身分</th>
                   <th class="p-2 bg-rose-50 border-r w-24 font-bold">應休(紅字)</th>
                   <th class="p-2 bg-amber-50 border-r w-24 font-bold">已排休天數</th>
                   <th class="p-2 bg-emerald-50 border-r w-24 font-bold">剩餘未排天數</th>
@@ -1652,11 +1694,18 @@
                   const rem = empSched.remainingUnscheduledOff;
                   const remText = rem === 0 ? 'OK' : rem > 0 ? `-${rem}` : `+${Math.abs(rem)}`;
                   const isExpired = empSched.isHealthExpired;
+                  const empObj = windowState.employees.find(e => e.name === empSched.empName);
+                  const isPT = empObj?.type?.includes('兼職') || empObj?.type?.includes('PT');
 
                   return `
                     <tr class="border-b hover:bg-slate-50/80 ${isExpired ? 'bg-rose-50/40' : ''}">
                       <td class="p-2.5 font-bold sticky left-0 bg-white border-r z-10 whitespace-nowrap">
-                        ${empSched.empName}
+                        <div class="flex items-center justify-between">
+                          <span>${empSched.empName}</span>
+                          <span class="px-2 py-0.5 rounded text-[10px] font-black ${isPT ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}">
+                            ${isPT ? 'PT' : '正職'}
+                          </span>
+                        </div>
                         ${isExpired ? `<span class="block text-[9px] text-rose-600 font-black">🔴 體檢過期鎖定</span>` : ''}
                       </td>
                       <td class="p-2 text-center border-r font-mono text-rose-600 font-bold">${empSched.requiredOffDays} 天</td>
@@ -1710,6 +1759,10 @@
             <div class="bg-slate-800/80 border border-indigo-500/30 rounded-2xl p-3 text-center space-y-1">
               <p class="text-[11px] text-amber-300 font-bold">🕒 目前系統即時時間</p>
               <p id="live-clock-display" class="text-3xl font-black font-mono text-white">--:--:--</p>
+              <!-- 新增：打卡範圍安全警示 -->
+              <div class="mt-2 py-1.5 px-3 bg-rose-500/20 border border-rose-500/40 rounded-xl text-rose-300 font-bold text-[11px]">
+                📍 打卡範圍警示：僅限 台北市萬華區峨眉街122-1號 15公尺內
+              </div>
             </div>
 
             <div class="bg-white/10 p-4 rounded-xl space-y-3 text-xs">
@@ -2122,8 +2175,15 @@
                 </div>
                 <div>
                   <label class="block text-slate-600 mb-1">地點</label>
-                  <input type="text" id="task-location" value="${m.location || '台北總店'}" class="w-full p-2 border rounded-xl" />
+                  <input type="text" id="task-location" value="${m.location || '中央廚房'}" class="w-full p-2 border rounded-xl font-bold text-indigo-900" />
                 </div>
+              </div>
+
+              <!-- 新增：檔案上傳欄位 (圖片或 PDF) -->
+              <div class="bg-indigo-50/70 p-3 rounded-2xl border border-indigo-200 space-y-1.5">
+                <label class="block text-xs font-extrabold text-indigo-950">📎 附加檔案 (圖片或 PDF)</label>
+                <input type="file" accept="image/*,application/pdf" onchange="handleTaskFileUploadInModal(event)" class="w-full p-1 border rounded-xl text-xs bg-white" />
+                ${m.fileName ? `<p class="text-[11px] text-emerald-700 font-bold">已選取檔案：${m.fileName}</p>` : ''}
               </div>
 
               <div class="bg-amber-50/70 p-3 rounded-2xl border border-amber-200 space-y-2">
