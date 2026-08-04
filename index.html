@@ -14,21 +14,6 @@
   <script src="https://cdn.tailwindcss.com"></script>
 
   <style>
-    @media print {
-      body * { visibility: hidden !important; }
-      #print-modal-area, #print-modal-area * { visibility: visible !important; }
-      #print-modal-area {
-        position: absolute !important;
-        left: 0 !important;
-        top: 0 !important;
-        width: 100% !important;
-        background: white !important;
-        padding: 5px !important;
-        margin: 0 !important;
-      }
-      .no-print { display: none !important; }
-      @page { size: A4 portrait; margin: 10mm; }
-    }
     .shift-select {
       -webkit-appearance: none;
       -moz-appearance: none;
@@ -43,7 +28,6 @@
 
   <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
   <div id="app"></div>
-  <div id="print-modal-area" class="hidden print:block"></div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-app.js";
@@ -297,75 +281,6 @@
       }
     };
 
-    window.exportSystemBackup = () => {
-      const backupData = {
-        version: "1.0",
-        exportDate: new Date().toISOString(),
-        employees: windowState.employees,
-        announcements: windowState.announcements,
-        tasks: windowState.tasks,
-        schedules: windowState.schedules,
-        clockRecords: windowState.clockRecords,
-        evaluations: windowState.evaluations,
-        evalArchives: windowState.evalArchives,
-        slogan: windowState.slogan
-      };
-      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
-      const downloadAnchor = document.createElement('a');
-      downloadAnchor.setAttribute("href", dataStr);
-      downloadAnchor.setAttribute("download", `QuanLaiShi_Backup_${todayStr}.json`);
-      document.body.appendChild(downloadAnchor);
-      downloadAnchor.click();
-      downloadAnchor.remove();
-      showToast('💾 系統備份已匯出！');
-    };
-
-    window.importSystemBackup = (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = async (uploadEvent) => {
-        try {
-          const parsed = JSON.parse(uploadEvent.target.result);
-          if (parsed.employees) windowState.employees = parsed.employees;
-          if (parsed.announcements) windowState.announcements = parsed.announcements;
-          if (parsed.tasks) windowState.tasks = parsed.tasks;
-          if (parsed.schedules) windowState.schedules = parsed.schedules;
-          if (parsed.clockRecords) windowState.clockRecords = parsed.clockRecords;
-          if (parsed.evaluations) windowState.evaluations = parsed.evaluations;
-          if (parsed.evalArchives) windowState.evalArchives = parsed.evalArchives;
-          if (parsed.slogan) windowState.slogan = parsed.slogan;
-          
-          await saveStateToCloud();
-          showToast('🎉 資料還原成功！');
-          render();
-        } catch (err) {
-          showToast('❌ 備份檔案格式錯誤', 'error');
-        }
-      };
-      reader.readAsText(file);
-    };
-
-    window.copyTaskLineText = (taskId) => {
-      const task = windowState.tasks.find(t => t.id === taskId);
-      if (!task) return;
-      let chkText = '';
-      if (task.checklist && task.checklist.length > 0) {
-        chkText = '\n\n📦 **檢查清單**：\n' + task.checklist.map(c => `${c.checked ? '[✓]' : '[☐]'} ${c.item}`).join('\n');
-      }
-      const lineText = `📌 【全錸蒔國際餐飲 - 工作交辦】\n\n🔹 主題：${task.title}\n📅 日期：${task.date}\n🕒 時間：${task.startTime} ~ ${task.endTime}\n📍 地點：${task.location}\n👥 負責：${task.assignees.join('、')}\n\n📝 說明：\n${task.content || '無'}${chkText}\n\n收到請回覆「收到 +1」！`;
-      navigator.clipboard.writeText(lineText).then(() => {
-        showToast('💬 已成功複製 LINE 訊息！');
-      });
-    };
-
-    window.copyHealthCheckReminderLineText = (empName, expireDateStr) => {
-      const text = `【全錸蒔國際餐飲 - 體檢提醒】\n\n${empName} 同仁您好：\n您的餐飲從業人員健康檢查效期至【${expireDateStr}】將屆滿/已過期，請於近期前往合格醫療院所完成體檢並繳交報告，謝謝！`;
-      navigator.clipboard.writeText(text).then(() => {
-        showToast(`📋 已複製【${empName}】體檢催辦訊息！`);
-      });
-    };
-
     window.switchModule = (moduleId) => { windowState.activeModule = moduleId; render(); };
     window.openAdminModal = () => { windowState.activeModal = 'admin'; render(); };
     window.openAnnModal = () => { windowState.activeModal = 'annModal'; render(); };
@@ -376,37 +291,6 @@
       windowState.isAdmin = !windowState.isAdmin;
       showToast(windowState.isAdmin ? '🎉 管理員權限已解鎖' : '🔒 管理員權限已上鎖');
       render();
-    };
-
-    window.toggleShowTerminatedEmps = () => {
-      windowState.showTerminatedEmps = !windowState.showTerminatedEmps;
-      render();
-    };
-
-    window.handleLogoUpload = (e) => {
-      const file = e.target.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (uploadEvent) => {
-          windowState.logoUrl = uploadEvent.target.result;
-          localStorage.setItem('shangyu_logo', windowState.logoUrl);
-          saveStateToCloud();
-          showToast('🎉 Logo 已更新！');
-          render();
-        };
-        reader.readAsDataURL(file);
-      }
-    };
-
-    window.handleAnnImageUploadInModal = (e) => {
-      const file = e.target.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (uploadEvent) => {
-          windowState.modalData.imageUrl = uploadEvent.target.result;
-        };
-        reader.readAsDataURL(file);
-      }
     };
 
     window.handleUserLoginSubmit = (e) => {
@@ -462,44 +346,6 @@
       });
       saveStateToCloud();
       showToast(`🎉 【${windowState.currentUser.name}】打卡成功！(工時：${hoursWorked}h)`);
-      render();
-    };
-
-    window.openEditClockModal = (recordId) => {
-      if (!windowState.isAdmin) return showToast('🔒 請先解鎖管理員權限！', 'warning');
-      const rec = windowState.clockRecords.find(c => c.id === recordId);
-      if (!rec) return;
-      windowState.modalData = { ...rec };
-      windowState.activeModal = 'clockModal';
-      render();
-    };
-
-    window.handleSaveClockSubmit = (e) => {
-      e.preventDefault();
-      const m = windowState.modalData;
-      const inTime = document.getElementById('edit-clock-in').value;
-      const outTime = document.getElementById('edit-clock-out').value;
-      const loc = document.getElementById('edit-clock-loc').value;
-
-      let hoursWorked = Number(m.hoursWorked) || 0.0;
-      let otHours = Number(m.otHours) || 0.0;
-
-      if (inTime && outTime && inTime !== '--:--' && outTime !== '--:--') {
-        const [inH, inM] = inTime.split(':').map(Number);
-        const [outH, outM] = outTime.split(':').map(Number);
-        const diffMin = Math.max(0, (outH * 60 + outM) - (inH * 60 + inM));
-        hoursWorked = Math.round((diffMin / 60) * 2) / 2;
-        if (hoursWorked > 9.0) otHours = hoursWorked - 9.0;
-      }
-
-      windowState.clockRecords = windowState.clockRecords.map(c => c.id === m.id ? {
-        ...c, clockIn: inTime, clockOut: outTime, location: loc, hoursWorked, otHours,
-        status: (inTime > '09:00' ? '⚠️ 遲到' : '🟢 正常')
-      } : c);
-
-      saveStateToCloud();
-      windowState.activeModal = null;
-      showToast('✅ 打卡記錄已更新！');
       render();
     };
 
@@ -710,6 +556,8 @@
     };
 
     window.printAttendanceRecord = () => {
+      const selectEl = document.getElementById('attendance-staff-select');
+      if (selectEl) windowState.selectedCardStaff = selectEl.value;
       const targetEmp = windowState.employees.find(e => e.name === windowState.selectedCardStaff) || windowState.employees[0];
       const { days } = getMonthDaysData(windowState.scheduleYear, windowState.scheduleMonth);
       const empClocks = windowState.clockRecords.filter(c => c.name === targetEmp.name && c.date.startsWith(`${windowState.scheduleYear}-${String(windowState.scheduleMonth).padStart(2,'0')}`));
