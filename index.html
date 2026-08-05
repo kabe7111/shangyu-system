@@ -11,7 +11,9 @@
   <meta name="theme-color" content="#0f172a">
   <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3448/3448609.png">
 
+  <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
   <style>
@@ -1149,7 +1151,7 @@
         showToast('目前沒有可匯出的紀錄', 'error');
         return;
       }
-      let csvContent = "\uFEFF" + "車牌,駕駛人,出發日期,出fire-time,出發里程,歸還日期,歸還時間,歸還里程,行駛距離,是否加油,加油公升數,加油金額,備註\n";
+      let csvContent = "\uFEFF" + "車牌,駕駛人,出發日期,出發時間,出發里程,歸還日期,歸還時間,歸還里程,行駛距離,是否加油,加油公升數,加油金額,備註\n";
       records.forEach(r => {
         const distance = r.returnMileage !== null ? (r.returnMileage - r.startMileage) : '';
         const row = [
@@ -1170,100 +1172,6 @@
       document.body.removeChild(a);
       showToast('完整報表匯出成功！');
     };
-
-    // 輔助函式定義
-    function shiftTypesConfig() {
-      return [
-        { type: '上班', label: '上班', color: 'bg-sky-100 text-sky-900 border-sky-300 font-bold' },
-        { type: '休假', label: '休假', color: 'bg-rose-100 text-rose-900 border-rose-300 font-bold' },
-        { type: '加班', label: '加班', color: 'bg-amber-200 text-amber-950 border-amber-400 font-extrabold' },
-        { type: '特半', label: '特半', color: 'bg-emerald-100 text-emerald-900 border-emerald-300 font-bold' },
-        { type: '特一', label: '特一', color: 'bg-emerald-200 text-emerald-950 border-emerald-400 font-extrabold' },
-        { type: '事假', label: '事假', color: 'bg-amber-100 text-amber-900 border-amber-300 font-bold' },
-        { type: '病假', label: '病假', color: 'bg-orange-100 text-orange-900 border-orange-300 font-bold' },
-        { type: '陪產', label: '陪產', color: 'bg-purple-100 text-purple-900 border-purple-300 font-bold' },
-        { type: '婚假', label: '婚假', color: 'bg-pink-100 text-pink-900 border-pink-300 font-bold' },
-        { type: '喪假', label: '喪假', color: 'bg-slate-200 text-slate-900 border-slate-400 font-bold' }
-      ];
-    }
-
-    function getNationalHolidayName(year, month, day) {
-      const dateKey = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-      const fixedHolidays = {
-        [`${year}-01-01`]: '元旦', [`${year}-02-28`]: '和平紀念日', [`${year}-04-04`]: '兒童節',
-        [`${year}-04-05`]: '清明節', [`${year}-05-01`]: '勞動節', [`${year}-09-28`]: '教師節',
-        [`${year}-10-10`]: '國慶日', [`${year}-12-25`]: '行憲紀念日'
-      };
-      if (fixedHolidays[dateKey]) return fixedHolidays[dateKey];
-      return null;
-    }
-
-    function getMonthDaysData(year, month) {
-      const daysInMonth = new Date(year, month, 0).getDate();
-      const firstDayOffset = new Date(year, month - 1, 1).getDay();
-      const days = [];
-      for (let i = 1; i <= daysInMonth; i++) {
-        const dateObj = new Date(year, month - 1, i);
-        const dayOfWeekIdx = dateObj.getDay();
-        const weekDayStr = ['（日）', '（一）', '（二）', '（三）', '（四）', '（五）', '（六）'][dayOfWeekIdx];
-        const isWeekend = dayOfWeekIdx === 0 || dayOfWeekIdx === 6;
-        const holidayName = getNationalHolidayName(year, month, i);
-        const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
-        days.push({ day: i, dateStr, weekDay: weekDayStr, isWeekend, holidayName, isHoliday: !!holidayName });
-      }
-      return { days, firstDayOffset, totalRedDays: days.filter(d => d.isWeekend || d.isHoliday).length };
-    }
-
-    function getStaffShiftOnDate(empName, dateStr) {
-      const dObj = new Date(dateStr);
-      const y = dObj.getFullYear();
-      const m = dObj.getMonth() + 1;
-      const key = `${y}-${m}-${empName}`;
-      const userShifts = windowState.schedules[key];
-      const isH = getNationalHolidayName(y, m, dObj.getDate()) || dObj.getDay() === 0 || dObj.getDay() === 6;
-      if (userShifts) return userShifts[dObj.getDate() - 1] || (isH ? '休假' : '上班');
-      return isH ? '休假' : '上班';
-    }
-
-    function calculateScheduleAndConflicts() {
-      const { days, firstDayOffset, totalRedDays } = getMonthDaysData(windowState.scheduleYear, windowState.scheduleMonth);
-      const activeEmps = windowState.employees.filter(e => e.status !== '離職');
-      const fullSchedules = activeEmps.map(emp => {
-        const key = `${windowState.scheduleYear}-${windowState.scheduleMonth}-${emp.name}`;
-        const customShifts = windowState.schedules[key];
-        const defaultShifts = days.map(m => (m.isWeekend || m.isHoliday ? '休假' : '上班'));
-        const shifts = customShifts || defaultShifts;
-        let scheduledOffCount = 0;
-        shifts.forEach(s => {
-          if (['休假', '事假', '病假', '陪產', '婚假', '喪假', '特一'].includes(s)) scheduledOffCount += 1;
-          else if (s === '特半') scheduledOffCount += 0.5;
-        });
-        const hcInfo = getHealthCheckInfo(emp.healthCheckDate);
-        return {
-          empName: emp.name, role: emp.role, healthCheckStatus: hcInfo.status, isHealthExpired: hcInfo.isExpired,
-          shifts, requiredOffDays: totalRedDays, scheduledOffCount, remainingUnscheduledOff: totalRedDays - scheduledOffCount
-        };
-      });
-      const dailyWorkingCounts = {};
-      days.forEach((m, dIdx) => {
-        let count = 0;
-        fullSchedules.forEach(empSched => {
-          const s = empSched.shifts[dIdx] || '上班';
-          if (s === '上班' || s === '特半' || s === '加班') count += 1;
-        });
-        dailyWorkingCounts[m.day] = count;
-      });
-      return { days, firstDayOffset, fullSchedules, dailyWorkingCounts, totalRedDays };
-    }
-
-    function maskText(text, type) {
-      if (windowState.isAdmin) return text;
-      if (!text) return '***';
-      if (type === 'pin') return '****';
-      if (type === 'phone') return text.slice(0, 3) + '****' + text.slice(-2);
-      if (type === 'address') return text.slice(0, 6) + '***';
-      return text;
-    }
 
     function renderModals() {
       if (!windowState.activeModal) return '';
