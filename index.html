@@ -11,7 +11,10 @@
   <meta name="theme-color" content="#0f172a">
   <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3448/3448609.png">
 
+  <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
   <style>
     @media print {
@@ -110,8 +113,16 @@
     ];
 
     const initialCars = [
-      { id: 'C001', name: '全錸蒔公務車 01 (商務休旅)', plate: 'ABC-8888', status: '可使用', currentMileage: 15420, lastUser: '王聖銓', destination: '公司車庫', returnTime: '--' },
-      { id: 'C002', name: '全錸蒔物流車 02 (廂型冷藏)', plate: 'XYZ-6666', status: '可使用', currentMileage: 28900, lastUser: '張阿強', destination: '公司車庫', returnTime: '--' }
+      { id: 'car1', plate: 'ABC-1234', model: 'Toyota Corolla Altis', currentMileage: 15200, lastServiceMileage: 12000, serviceInterval: 5000, photoUrl: '', status: 'available', currentDriver: '' },
+      { id: 'car2', plate: 'XYZ-5678', model: 'Honda CR-V', currentMileage: 8420, lastServiceMileage: 5000, serviceInterval: 5000, photoUrl: '', status: 'available', currentDriver: '' }
+    ];
+    const initialCarRecords = [
+      {
+        id: 'rec_1', carId: 'car1', plate: 'ABC-1234', driver: '王聖銓',
+        startDate: '2026-08-01', startTime: '09:00', startMileage: 15050,
+        returnDate: '2026-08-01', returnTime: '12:30', returnMileage: 15200,
+        isRefuel: true, refuelLiters: 12.5, refuelCost: 420, notes: '拜訪客戶（車況正常）'
+      }
     ];
 
     const windowState = {
@@ -137,8 +148,8 @@
       tasks: initialTasks,
       schedules: {},
       clockRecords: initialClockRecords,
-      cars: initialCars,
-      carLogs: [],
+      cars: JSON.parse(localStorage.getItem('car_list')) || initialCars,
+      carRecords: JSON.parse(localStorage.getItem('car_records')) || initialCarRecords,
       evaluations: {},
       evalArchives: {},
       activeModal: null,
@@ -231,8 +242,8 @@
         windowState.cars = data.cars;
         hasChanges = true;
       }
-      if (data.carLogs && JSON.stringify(data.carLogs) !== JSON.stringify(windowState.carLogs)) {
-        windowState.carLogs = data.carLogs;
+      if (data.carRecords && JSON.stringify(data.carRecords) !== JSON.stringify(windowState.carRecords)) {
+        windowState.carRecords = data.carRecords;
         hasChanges = true;
       }
       if (data.evaluations && JSON.stringify(data.evaluations) !== JSON.stringify(windowState.evaluations)) {
@@ -276,7 +287,7 @@
           schedules: windowState.schedules,
           clockRecords: windowState.clockRecords,
           cars: windowState.cars,
-          carLogs: windowState.carLogs,
+          carRecords: windowState.carRecords,
           evaluations: windowState.evaluations,
           evalArchives: windowState.evalArchives,
           logoUrl: windowState.logoUrl,
@@ -325,7 +336,7 @@
         schedules: windowState.schedules,
         clockRecords: windowState.clockRecords,
         cars: windowState.cars,
-        carLogs: windowState.carLogs,
+        carRecords: windowState.carRecords,
         evaluations: windowState.evaluations,
         evalArchives: windowState.evalArchives,
         slogan: windowState.slogan
@@ -353,7 +364,7 @@
           if (parsed.schedules) windowState.schedules = parsed.schedules;
           if (parsed.clockRecords) windowState.clockRecords = parsed.clockRecords;
           if (parsed.cars) windowState.cars = parsed.cars;
-          if (parsed.carLogs) windowState.carLogs = parsed.carLogs;
+          if (parsed.carRecords) windowState.carRecords = parsed.carRecords;
           if (parsed.evaluations) windowState.evaluations = parsed.evaluations;
           if (parsed.evalArchives) windowState.evalArchives = parsed.evalArchives;
           if (parsed.slogan) windowState.slogan = parsed.slogan;
@@ -385,7 +396,7 @@
     window.copyHealthCheckReminderLineText = (empName, expireDateStr) => {
       const text = `【全錸蒔國際餐飲 - 人事健康檢查溫馨提醒】\n\n${empName} 同仁您好：\n提醒您，依食品安全衛生管理法與公司規範，您的餐飲從業人員健康檢查效期至【${expireDateStr}】將屆滿/已過期。\n為保障您的排班權益與顧客用餐安全，請於近期前往合格醫療院所完成體檢，並將合格報告交予 HR / 店長備查，謝謝您的配合！`;
       navigator.clipboard.writeText(text).then(() => {
-        showToast(`📋 已成功複製【${empName}】體檢催辦訊息！`);
+        showToast(`📋 已複製【${empName}】體檢催辦訊息！`);
       });
     };
 
@@ -932,7 +943,75 @@
       render();
     };
 
-    // 公務車管理動作函數
+    // ==========================================
+    // 公務車系統相關互動函數 (新增/編輯/照片/保養)
+    // ==========================================
+    window.openAddCarModal = () => {
+      windowState.modalData = { isEdit: false, id: 'car_' + Date.now(), plate: '', model: '', currentMileage: 0, serviceInterval: 5000, photoUrl: '' };
+      windowState.activeModal = 'carEditModal';
+      render();
+    };
+
+    window.openEditCarModal = (carId) => {
+      const car = windowState.cars.find(c => c.id === carId);
+      if (!car) return;
+      windowState.modalData = { isEdit: true, ...car };
+      windowState.activeModal = 'carEditModal';
+      render();
+    };
+
+    window.handleCarPhotoUploadInModal = (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (uploadEvent) => {
+          windowState.modalData.photoUrl = uploadEvent.target.result;
+          showToast('📸 車輛照片已成功載入！');
+        };
+        reader.readAsDataURL(file);
+      }
+    };
+
+    window.handleSaveCarSubmit = (e) => {
+      e.preventDefault();
+      const m = windowState.modalData;
+      const plate = document.getElementById('car-modal-plate').value.trim();
+      const model = document.getElementById('car-modal-model').value.trim();
+      const currentMileage = Number(document.getElementById('car-modal-mileage').value);
+      const serviceInterval = Number(document.getElementById('car-modal-interval').value) || 5000;
+
+      if (m.isEdit) {
+        windowState.cars = windowState.cars.map(c => c.id === m.id ? {
+          ...c, plate, model, currentMileage, serviceInterval, photoUrl: m.photoUrl || c.photoUrl
+        } : c);
+        showToast('✅ 車輛資料已更新！');
+      } else {
+        windowState.cars.push({
+          id: m.id, plate, model, currentMileage, lastServiceMileage: currentMileage, serviceInterval,
+          photoUrl: m.photoUrl || '', status: 'available', currentDriver: ''
+        });
+        showToast('🎉 新公務車已加入車庫！');
+      }
+
+      localStorage.setItem('car_list', JSON.stringify(windowState.cars));
+      saveStateToCloud();
+      windowState.activeModal = null;
+      render();
+    };
+
+    window.deleteCar = (carId) => {
+      if (windowState.cars.length <= 1) {
+        return alert('❌ 車庫中至少需保留一台公務車！');
+      }
+      if (confirm('確定要從車庫刪除這台公務車嗎？')) {
+        windowState.cars = windowState.cars.filter(c => c.id !== carId);
+        localStorage.setItem('car_list', JSON.stringify(windowState.cars));
+        saveStateToCloud();
+        showToast('🗑️ 車輛已刪除');
+        render();
+      }
+    };
+
     window.openCarBorrowModal = (carId) => {
       const car = windowState.cars.find(c => c.id === carId);
       if (!car) return;
@@ -948,393 +1027,302 @@
       const mileage = Number(document.getElementById('borrow-mileage').value);
 
       windowState.cars = windowState.cars.map(c => c.id === m.carId ? {
-        ...c, status: '使用中', currentMileage: mileage, lastUser: windowState.currentUser.name, destination: dest, returnTime: '--'
+        ...c, status: 'in-use', currentMileage: mileage, currentDriver: windowState.currentUser.name
       } : c);
 
-      windowState.carLogs.unshift({
-        id: Date.now(), carId: m.carId, carName: windowState.cars.find(c => c.id === m.carId)?.name,
-        userName: windowState.currentUser.name, destination: dest, startMileage: mileage, endMileage: '--',
-        borrowTime: new Date().toLocaleString('zh-TW', { hour12: false }), returnTime: '使用中'
-      });
+      const newRec = {
+        id: 'rec_' + Date.now(),
+        carId: m.carId,
+        plate: windowState.cars.find(c => c.id === m.carId)?.plate,
+        driver: windowState.currentUser.name,
+        startDate: todayStr,
+        startTime: new Date().toTimeString().substring(0, 5),
+        startMileage: mileage,
+        returnDate: null,
+        returnTime: null,
+        returnMileage: null,
+        isRefuel: false,
+        refuelLiters: 0,
+        refuelCost: 0,
+        notes: dest
+      };
+
+      windowState.carRecords.unshift(newRec);
+      localStorage.setItem('car_list', JSON.stringify(windowState.cars));
+      localStorage.setItem('car_records', JSON.stringify(windowState.carRecords));
 
       saveStateToCloud();
       windowState.activeModal = null;
-      showToast('🚗 公務車借用登記成功！');
+      showToast('🚗 公務車出發登記成功！');
       render();
     };
 
     window.returnCarAction = (carId) => {
       const car = windowState.cars.find(c => c.id === carId);
       if (!car) return;
-      const returnMileageInput = prompt(`請輸入【${car.name}】歸還時的累積里程數 (目前記錄: ${car.currentMileage} km)：`, car.currentMileage);
-      if (returnMileageInput === null) return;
-      const endMileage = Number(returnMileageInput);
-      if (isNaN(endMileage) || endMileage < car.currentMileage) {
-        return alert('❌ 里程數輸入錯誤，歸還里程不可小於出發里程！');
+      const record = windowState.carRecords.find(r => r.carId === carId && r.returnMileage === null);
+      if (!record) {
+        showToast('找不到對應的出發紀錄', 'error');
+        return;
       }
 
-      windowState.cars = windowState.cars.map(c => c.id === carId ? {
-        ...c, status: '可使用', currentMileage: endMileage, destination: '公司車庫', returnTime: new Date().toLocaleTimeString('zh-TW', { hour12: false })
-      } : c);
-
-      const log = windowState.carLogs.find(l => l.carId === carId && l.returnTime === '使用中');
-      if (log) {
-        log.endMileage = endMileage;
-        log.returnTime = new Date().toLocaleString('zh-TW', { hour12: false });
-      }
-
-      saveStateToCloud();
-      showToast('✅ 公務車已成功歸還！');
+      windowState.modalData = { recordId: record.id, carId, startMileage: record.startMileage, plate: car.plate };
+      windowState.activeModal = 'carReturnModal';
       render();
     };
 
-    window.printSingleEmployeeRoster = (empId) => {
-      const printEmp = windowState.employees.find(e => e.id === empId);
-      if (!printEmp) return;
-      const hcInfo = getHealthCheckInfo(printEmp.healthCheckDate);
+    window.handleReturnCarSubmit = (e) => {
+      e.preventDefault();
+      const m = windowState.modalData;
+      const returnMileage = parseInt(document.getElementById('modal-return-mileage').value);
+      const isRefuel = document.getElementById('modal-is-refuel')?.checked || false;
+      const refuelLiters = isRefuel ? parseFloat(document.getElementById('modal-refuel-liters').value) || 0 : 0;
+      const refuelCost = isRefuel ? parseFloat(document.getElementById('modal-refuel-cost').value) || 0 : 0;
+      const notes = document.getElementById('modal-notes').value;
 
-      const printArea = document.getElementById('print-modal-area');
-      printArea.innerHTML = `
-        <div class="p-8 space-y-6">
-          <h1 class="text-2xl font-black text-center border-b-2 border-slate-900 pb-2">全錸蒔國際餐飲 員工個人履歷與人事資料卡</h1>
-          <table class="w-full text-xs border-collapse border border-slate-400">
-            <tbody>
-              <tr><td class="p-3 bg-slate-100 font-bold border border-slate-400">同仁姓名</td><td class="p-3 border border-slate-400 font-bold">${printEmp.name}</td><td class="p-3 bg-slate-100 font-bold border border-slate-400">員工工號</td><td class="p-3 border border-slate-400 font-mono">${printEmp.id}</td></tr>
-              <tr><td class="p-3 bg-slate-100 font-bold border border-slate-400">職稱崗位</td><td class="p-3 border border-slate-400">${printEmp.role}</td><td class="p-3 bg-slate-100 font-bold border border-slate-400">體檢狀態</td><td class="p-3 border border-slate-400 font-bold">${hcInfo.status} (體檢日期: ${printEmp.healthCheckDate || '未填'})</td></tr>
-              <tr><td class="p-3 bg-slate-100 font-bold border border-slate-400">🎂 生日</td><td class="p-3 border border-slate-400">${printEmp.birthday}</td><td class="p-3 bg-slate-100 font-bold border border-slate-400">📅 到職日</td><td class="p-3 border border-slate-400">${printEmp.joinDate}</td></tr>
-              <tr><td class="p-3 bg-slate-100 font-bold border border-slate-400">📞 電話</td><td class="p-3 border border-slate-400 font-mono">${printEmp.phone}</td><td class="p-3 bg-slate-100 font-bold border border-slate-400">緊急聯絡人</td><td class="p-3 border border-slate-400">${printEmp.emergencyContact} (${printEmp.emergencyPhone})</td></tr>
-              <tr><td class="p-3 bg-slate-100 font-bold border border-slate-400">🏠 居住地址</td><td colSpan="3" class="p-3 border border-slate-400">${printEmp.address}</td></tr>
-              <tr><td class="p-3 bg-slate-100 font-bold border border-slate-400">🏖️ 特休額度</td><td colSpan="3" class="p-3 border border-slate-400 font-bold">總額：${printEmp.leaveEntitled} 天 · 已休：${printEmp.leaveUsed} 天 · 剩餘：${printEmp.leaveEntitled - printEmp.leaveUsed} 天</td></tr>
-              <tr><td class="p-3 bg-slate-100 font-bold border border-slate-400">📝 個人備註</td><td colSpan="3" class="p-3 border border-slate-400">${printEmp.note || '無'}</td></tr>
-            </tbody>
-          </table>
-        </div>
-      `;
-      window.print();
-      setTimeout(() => { printArea.innerHTML = ''; }, 1000);
-    };
-
-    window.printSingleEmployeeEval = (empName) => {
-      const emp = windowState.employees.find(e => e.name === empName);
-      const customEval = windowState.evaluations[empName] || { efficiencyScore: 3, tripCoopScore: 3, sanitationScore: 3, knowledgeScore: 3, comment: '工作表現正常。' };
-      const score = 70 + (customEval.efficiencyScore * 2) + (customEval.tripCoopScore * 2) + (customEval.sanitationScore * 2) + (customEval.knowledgeScore * 2);
-
-      const printArea = document.getElementById('print-modal-area');
-      printArea.innerHTML = `
-        <div class="p-8 space-y-6">
-          <h1 class="text-2xl font-black text-center border-b-2 border-slate-900 pb-2">全錸蒔國際餐飲 員工個人績效考核報告</h1>
-          <div class="grid grid-cols-2 gap-4 text-xs font-bold bg-slate-50 p-3 rounded-xl border">
-            <div>同仁姓名：<span class="text-indigo-900 font-extrabold">${empName} (${emp?.role || '員工'})</span></div>
-            <div>最終評定總分：<span class="text-rose-600 font-black text-lg">${score} 分</span></div>
-          </div>
-          <table class="w-full text-xs border-collapse border border-slate-400">
-            <tbody>
-              <tr><td class="p-3 bg-slate-100 font-bold border border-slate-400">⚡ 工作效率</td><td class="p-3 border border-slate-400">${'⭐'.repeat(customEval.efficiencyScore)}</td></tr>
-              <tr><td class="p-3 bg-slate-100 font-bold border border-slate-400">🚗 出差配合</td><td class="p-3 border border-slate-400">${'⭐'.repeat(customEval.tripCoopScore)}</td></tr>
-              <tr><td class="p-3 bg-slate-100 font-bold border border-slate-400">🧹 食品衛生</td><td class="p-3 border border-slate-400">${'⭐'.repeat(customEval.sanitationScore)}</td></tr>
-              <tr><td class="p-3 bg-slate-100 font-bold border border-slate-400">📚 專業知識</td><td class="p-3 border border-slate-400">${'⭐'.repeat(customEval.knowledgeScore)}</td></tr>
-              <tr><td class="p-3 bg-slate-100 font-bold border border-slate-400">📝 主管評語</td><td class="p-3 border border-slate-400 leading-relaxed">${customEval.comment}</td></tr>
-            </tbody>
-          </table>
-        </div>
-      `;
-      window.print();
-      setTimeout(() => { printArea.innerHTML = ''; }, 1000);
-    };
-
-    window.printAnnualEvalReport = () => {
-      const year = windowState.selectedAnnualYear;
-      const empName = windowState.selectedAnnualEmp;
-      const archives = windowState.evalArchives || {};
-
-      const printArea = document.getElementById('print-modal-area');
-      printArea.innerHTML = `
-        <div class="p-8 space-y-6">
-          <h1 class="text-xl font-black text-center border-b-2 border-slate-900 pb-2">全錸蒔國際餐飲 - ${year} 年度【${empName}】考核歷史彙整總表</h1>
-          <table class="w-full text-xs text-center border-collapse border border-slate-400">
-            <thead class="bg-slate-100">
-              <tr>
-                <th class="p-2 border border-slate-400">月份</th>
-                <th class="p-2 border border-slate-400">工作效率</th>
-                <th class="p-2 border border-slate-400">出差配合</th>
-                <th class="p-2 border border-slate-400">食品衛生</th>
-                <th class="p-2 border border-slate-400">專業知識</th>
-                <th class="p-2 border border-slate-400">總分</th>
-                <th class="p-2 border border-slate-400 text-left">主管評語</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${Array.from({length: 12}, (_, i) => i + 1).map(m => {
-                const key = `${year}-${m}`;
-                const data = archives[key]?.[empName];
-                return `
-                  <tr>
-                    <td class="p-2 border border-slate-400 font-bold">${year}年 ${m}月</td>
-                    <td class="p-2 border border-slate-400">${data ? `${data.efficiencyScore}⭐` : '-'}</td>
-                    <td class="p-2 border border-slate-400">${data ? `${data.tripCoopScore}⭐` : '-'}</td>
-                    <td class="p-2 border border-slate-400">${data ? `${data.sanitationScore}⭐` : '-'}</td>
-                    <td class="p-2 border border-slate-400">${data ? `${data.knowledgeScore}⭐` : '-'}</td>
-                    <td class="p-2 border border-slate-400 font-mono font-black text-indigo-700">${data ? `${data.totalScore}分` : '未存檔'}</td>
-                    <td class="p-2 border border-slate-400 text-left">${data ? data.comment : '-'}</td>
-                  </tr>
-                `;
-              }).join('')}
-            </tbody>
-          </table>
-        </div>
-      `;
-      window.print();
-      setTimeout(() => { printArea.innerHTML = ''; }, 1000);
-    };
-
-    window.printAttendanceRecord = () => {
-      const selectEl = document.getElementById('attendance-staff-select');
-      if (selectEl) windowState.selectedCardStaff = selectEl.value;
-      const targetEmp = windowState.employees.find(e => e.name === windowState.selectedCardStaff) || windowState.employees[0];
-      const { days } = getMonthDaysData(windowState.scheduleYear, windowState.scheduleMonth);
-      
-      const empClocks = windowState.clockRecords.filter(c => c.name === targetEmp.name && c.date.startsWith(`${windowState.scheduleYear}-${String(windowState.scheduleMonth).padStart(2,'0')}`));
-      const totalWorkH = empClocks.reduce((acc, c) => acc + (c.hoursWorked || 0), 0).toFixed(1);
-      const totalOTH = empClocks.reduce((acc, c) => acc + (c.otHours || 0), 0).toFixed(1);
-      const lateCount = empClocks.filter(c => c.status.includes('遲到')).length;
-
-      const printArea = document.getElementById('print-modal-area');
-      printArea.innerHTML = `
-        <div class="p-4 space-y-3 bg-white text-slate-900 max-w-[210mm] mx-auto text-[11px] leading-tight">
-          <div class="text-center border-b-2 border-slate-900 pb-2 space-y-0.5">
-            <h1 class="text-lg font-black tracking-wider">全錸蒔國際餐飲 員工每月考勤打卡與出勤簽核表</h1>
-            <p class="text-[10px] text-slate-600">統計月份：<strong class="font-mono text-slate-900">${windowState.scheduleYear} 年 ${windowState.scheduleMonth} 月</strong> · 列印日期：${todayStr}</p>
-          </div>
-
-          <div class="grid grid-cols-4 gap-2 bg-slate-50 p-2 rounded-lg border border-slate-300 font-bold text-[11px]">
-            <div>員工工號：<span class="font-mono">${targetEmp.id}</span></div>
-            <div>同仁姓名：<span class="text-indigo-950 font-black">${targetEmp.name}</span></div>
-            <div>職稱崗位：<span>${targetEmp.role}</span></div>
-            <div>雇用類別：<span>${targetEmp.type}</span></div>
-          </div>
-
-          <table class="w-full text-[10px] text-center border-collapse border border-slate-400">
-            <thead class="bg-slate-100 font-bold">
-              <tr>
-                <th class="p-1 border border-slate-400 w-14">日期</th>
-                <th class="p-1 border border-slate-400 w-16">預定班別</th>
-                <th class="p-1 border border-slate-400 w-20">☀️ 上班刷卡</th>
-                <th class="p-1 border border-slate-400 w-20">🌙 下班刷卡</th>
-                <th class="p-1 border border-slate-400 w-20">實算工時</th>
-                <th class="p-1 border border-slate-400 text-left">打卡地點 / 備註</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${days.map(m => {
-                const rec = windowState.clockRecords.find(c => c.name === targetEmp.name && c.date === m.dateStr);
-                return `
-                  <tr class="${m.isWeekend || m.isHoliday ? 'bg-rose-50/30' : ''}">
-                    <td class="p-1 border border-slate-400 font-mono font-bold">${windowState.scheduleMonth}/${m.day} ${m.weekDay}</td>
-                    <td class="p-1 border border-slate-400">${getStaffShiftOnDate(targetEmp.name, m.dateStr)}</td>
-                    <td class="p-1 border border-slate-400 font-mono">${rec ? rec.clockIn : '--:--'}</td>
-                    <td class="p-1 border border-slate-400 font-mono">${rec ? rec.clockOut : '--:--'}</td>
-                    <td class="p-1 border border-slate-400 font-mono">${rec ? `${rec.hoursWorked || 0}h` : '-'}</td>
-                    <td class="p-1 border border-slate-400 text-left truncate">${rec ? rec.location : '-'}</td>
-                  </tr>
-                `;
-              }).join('')}
-            </tbody>
-          </table>
-
-          <div class="grid grid-cols-3 gap-2 bg-slate-50 p-2 rounded-lg border border-slate-300 font-bold text-center text-[11px]">
-            <div>本月總出勤工時：<span class="font-mono text-indigo-700">${totalWorkH} 小時</span></div>
-            <div>本月累計加班：<span class="font-mono text-amber-700">${totalOTH} 小時</span></div>
-            <div>本月遲到次數：<span class="font-mono text-rose-600">${lateCount} 次</span></div>
-          </div>
-
-          <div class="grid grid-cols-3 gap-6 pt-6 text-center font-bold text-[11px]">
-            <div class="border-t-2 border-slate-900 pt-1.5">
-              <p>員工親簽 (Signature)</p>
-            </div>
-            <div class="border-t-2 border-slate-900 pt-1.5">
-              <p>部門主管 / 店長覆核 (Manager)</p>
-            </div>
-            <div class="border-t-2 border-slate-900 pt-1.5">
-              <p>總經理 / 人事核准 (Director)</p>
-            </div>
-          </div>
-        </div>
-      `;
-      window.print();
-      setTimeout(() => { printArea.innerHTML = ''; }, 1000);
-    };
-
-    window.printLateReport = () => {
-      const uniqueRecords = getUniqueClockRecords();
-      const printArea = document.getElementById('print-modal-area');
-      printArea.innerHTML = `
-        <div class="p-8 space-y-4">
-          <h1 class="text-xl font-black text-center border-b-2 border-slate-900 pb-2">全錸蒔國際餐飲 - 每月遲到與考勤統計報表</h1>
-          <table class="w-full text-xs text-left border-collapse border border-slate-400">
-            <thead class="bg-slate-100">
-              <tr><th class="p-2.5 border border-slate-400">工號</th><th class="p-2.5 border border-slate-400">同仁姓名</th><th class="p-2.5 border border-slate-400">職稱</th><th class="p-2.5 border border-slate-400">遲到總次數</th><th class="p-2.5 border border-slate-400">說明</th></tr>
-            </thead>
-            <tbody>
-              ${windowState.employees.map(e => {
-                const count = uniqueRecords.filter(c => c.name === e.name && c.status.includes('遲到')).length;
-                return `
-                  <tr>
-                    <td class="p-2.5 border border-slate-400 font-mono">${e.id}</td>
-                    <td class="p-2.5 border border-slate-400 font-bold">${e.name}</td>
-                    <td class="p-2.5 border border-slate-400">${e.role}</td>
-                    <td class="p-2.5 border border-slate-400 font-mono text-rose-600 font-black">${count} 次</td>
-                    <td class="p-2.5 border border-slate-400">${count > 0 ? `扣分 ${count * 5} 分` : '🟢 無扣分'}</td>
-                  </tr>
-                `;
-              }).join('')}
-            </tbody>
-          </table>
-        </div>
-      `;
-      window.print();
-      setTimeout(() => { printArea.innerHTML = ''; }, 1000);
-    };
-
-    function maskText(text, type) {
-      if (windowState.isAdmin) return text;
-      if (!text) return '***';
-      if (type === 'pin') return '****';
-      if (type === 'phone') return text.slice(0, 3) + '****' + text.slice(-2);
-      if (type === 'address') return text.slice(0, 6) + '*** (管理員解鎖可見)';
-      return text;
-    }
-
-    function shiftTypesConfig() {
-      return [
-        { type: '上班', label: '上班', color: 'bg-sky-100 text-sky-900 border-sky-300 font-bold' },
-        { type: '休假', label: '休假', color: 'bg-rose-100 text-rose-900 border-rose-300 font-bold' },
-        { type: '加班', label: '加班', color: 'bg-amber-200 text-amber-950 border-amber-400 font-extrabold' },
-        { type: '特半', label: '特半', color: 'bg-emerald-100 text-emerald-900 border-emerald-300 font-bold' },
-        { type: '特一', label: '特一', color: 'bg-emerald-200 text-emerald-950 border-emerald-400 font-extrabold' },
-        { type: '事假', label: '事假', color: 'bg-amber-100 text-amber-900 border-amber-300 font-bold' },
-        { type: '病假', label: '病假', color: 'bg-orange-100 text-orange-900 border-orange-300 font-bold' },
-        { type: '陪產', label: '陪產', color: 'bg-purple-100 text-purple-900 border-purple-300 font-bold' },
-        { type: '婚假', label: '婚假', color: 'bg-pink-100 text-pink-900 border-pink-300 font-bold' },
-        { type: '喪假', label: '喪假', color: 'bg-slate-200 text-slate-900 border-slate-400 font-bold' }
-      ];
-    }
-
-    function getNationalHolidayName(year, month, day) {
-      const dateKey = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-      
-      const fixedHolidays = {
-        [`${year}-01-01`]: '元旦',
-        [`${year}-02-28`]: '和平紀念日',
-        [`${year}-04-04`]: '兒童節',
-        [`${year}-04-05`]: '清明節',
-        [`${year}-05-01`]: '勞動節',
-        [`${year}-09-28`]: '教師節',
-        [`${year}-10-10`]: '國慶日',
-        [`${year}-12-25`]: '行憲紀念日'
-      };
-
-      if (fixedHolidays[dateKey]) return fixedHolidays[dateKey];
-
-      if (year === 2026) {
-        const h2026 = {
-          '2026-02-13': '春節前夕', '2026-02-16': '農曆初一', '2026-02-17': '農曆初二', 
-          '2026-02-18': '農曆初三', '2026-02-19': '農曆初四', '2026-02-20': '農曆初五', '2026-02-23': '春節補假',
-          '2026-04-03': '兒童節補假', '2026-04-06': '清明節補假',
-          '2026-06-19': '端午節',
-          '2026-09-25': '中秋節',
-          '2026-10-09': '國慶日補假',
-          '2026-10-25': '台灣光復節', '2026-10-26': '光復節補假'
-        };
-        if (h2026[dateKey]) return h2026[dateKey];
+      if (returnMileage < m.startMileage) {
+        alert('❌ 歸還里程數不可小於出發里程數！');
+        return;
       }
 
-      if (year === 2027) {
-        const h2027 = {
-          '2027-02-04': '小年夜', '2027-02-05': '除夕', '2027-02-06': '農曆初一', 
-          '2027-02-07': '農曆初二', '2027-02-08': '農曆初三', '2027-02-09': '春節補假', '2027-02-10': '春節補假',
-          '2027-03-01': '和平紀念日補假',
-          '2027-04-06': '兒童節清明節補假',
-          '2027-06-08': '端午節',
-          '2027-09-15': '中秋節',
-          '2027-10-11': '國慶日補假'
-        };
-        if (h2027[dateKey]) return h2027[dateKey];
+      const record = windowState.carRecords.find(r => r.id === m.recordId);
+      if (record) {
+        record.returnDate = todayStr;
+        record.returnTime = new Date().toTimeString().substring(0, 5);
+        record.returnMileage = returnMileage;
+        record.isRefuel = isRefuel;
+        record.refuelLiters = refuelLiters;
+        record.refuelCost = refuelCost;
+        record.notes = notes || '車況正常';
       }
 
-      return null;
-    }
-
-    function getMonthDaysData(year, month) {
-      const daysInMonth = new Date(year, month, 0).getDate();
-      const firstDayOffset = new Date(year, month - 1, 1).getDay();
-      const days = [];
-      for (let i = 1; i <= daysInMonth; i++) {
-        const dateObj = new Date(year, month - 1, i);
-        const dayOfWeekIdx = dateObj.getDay();
-        const weekDayStr = ['（日）', '（一）', '（二）', '（三）', '（四）', '（五）', '（六）'][dayOfWeekIdx];
-        const isWeekend = dayOfWeekIdx === 0 || dayOfWeekIdx === 6;
-        const holidayName = getNationalHolidayName(year, month, i);
-        const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
-        days.push({ day: i, dateStr, weekDay: weekDayStr, isWeekend, holidayName, isHoliday: !!holidayName });
+      const car = windowState.cars.find(c => c.id === m.carId);
+      if (car) {
+        car.currentMileage = returnMileage;
+        car.status = 'available';
+        car.currentDriver = '';
       }
-      return { days, firstDayOffset, totalRedDays: days.filter(d => d.isWeekend || d.isHoliday).length };
-    }
 
-    function getStaffShiftOnDate(empName, dateStr) {
-      const dObj = new Date(dateStr);
-      const y = dObj.getFullYear();
-      const m = dObj.getMonth() + 1;
-      const key = `${y}-${m}-${empName}`;
-      const userShifts = windowState.schedules[key];
-      const isH = getNationalHolidayName(y, m, dObj.getDate()) || dObj.getDay() === 0 || dObj.getDay() === 6;
-      if (userShifts) return userShifts[dObj.getDate() - 1] || (isH ? '休假' : '上班');
-      return isH ? '休假' : '上班';
-    }
+      localStorage.setItem('car_list', JSON.stringify(windowState.cars));
+      localStorage.setItem('car_records', JSON.stringify(windowState.carRecords));
+      saveStateToCloud();
+      windowState.activeModal = null;
+      showToast('✅ 還車登記已完成！');
+      render();
+    };
 
-    function calculateScheduleAndConflicts() {
-      const { days, firstDayOffset, totalRedDays } = getMonthDaysData(windowState.scheduleYear, windowState.scheduleMonth);
-      const activeEmps = windowState.employees.filter(e => e.status !== '離職');
-      
-      const fullSchedules = activeEmps.map(emp => {
-        const key = `${windowState.scheduleYear}-${windowState.scheduleMonth}-${emp.name}`;
-        const customShifts = windowState.schedules[key];
-        const defaultShifts = days.map(m => (m.isWeekend || m.isHoliday ? '休假' : '上班'));
-        const shifts = customShifts || defaultShifts;
+    window.toggleModalRefuelFields = () => {
+      const isChecked = document.getElementById('modal-is-refuel')?.checked;
+      const container = document.getElementById('modal-refuel-details');
+      if (container) {
+        if (isChecked) container.classList.remove('hidden');
+        else container.classList.add('hidden');
+      }
+    };
 
-        let scheduledOffCount = 0;
-        shifts.forEach(s => {
-          if (['休假', '事假', '病假', '陪產', '婚假', '喪假', '特一'].includes(s)) {
-            scheduledOffCount += 1;
-          } else if (s === '特半') {
-            scheduledOffCount += 0.5;
-          }
-        });
+    window.resetService = (carId) => {
+      const car = windowState.cars.find(c => c.id === carId);
+      if (car) {
+        car.lastServiceMileage = car.currentMileage;
+        localStorage.setItem('car_list', JSON.stringify(windowState.cars));
+        saveStateToCloud();
+        showToast(`已更新 ${car.plate} 的保養紀錄！`);
+        render();
+      }
+    };
 
-        const hcInfo = getHealthCheckInfo(emp.healthCheckDate);
+    window.deleteCarRecord = (id) => {
+      if (confirm('確定要刪除這筆用車紀錄嗎？')) {
+        const rec = windowState.carRecords.find(r => r.id === id);
+        if (rec && rec.returnMileage === null) {
+          const car = windowState.cars.find(c => c.id === rec.carId);
+          if (car) { car.status = 'available'; car.currentDriver = ''; }
+        }
+        windowState.carRecords = windowState.carRecords.filter(r => r.id !== id);
+        localStorage.setItem('car_records', JSON.stringify(windowState.carRecords));
+        saveStateToCloud();
+        showToast('紀錄已刪除');
+        render();
+      }
+    };
 
-        return {
-          empName: emp.name,
-          role: emp.role,
-          healthCheckStatus: hcInfo.status,
-          isHealthExpired: hcInfo.isExpired,
-          shifts,
-          requiredOffDays: totalRedDays,
-          scheduledOffCount,
-          remainingUnscheduledOff: totalRedDays - scheduledOffCount
-        };
+    window.exportCarCSV = () => {
+      const records = windowState.carRecords || [];
+      if (records.length === 0) {
+        showToast('目前沒有可匯出的紀錄', 'error');
+        return;
+      }
+      let csvContent = "\uFEFF" + "車牌,駕駛人,出發日期,出發時間,出發里程,歸還日期,歸還時間,歸還里程,行駛距離,是否加油,加油公升數,加油金額,備註\n";
+      records.forEach(r => {
+        const distance = r.returnMileage !== null ? (r.returnMileage - r.startMileage) : '';
+        const row = [
+          r.plate, r.driver, r.startDate, r.startTime, r.startMileage,
+          r.returnDate || '', r.returnTime || '', r.returnMileage !== null ? r.returnMileage : '',
+          distance, r.isRefuel ? '是' : '否', r.refuelLiters || '', r.refuelCost || '',
+          `"${(r.notes || '').replace(/"/g, '""')}"`
+        ];
+        csvContent += row.join(",") + "\n";
       });
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.setAttribute('href', url);
+      a.setAttribute('download', `公務車完整報表_${todayStr}.csv`);
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      showToast('完整報表匯出成功！');
+    };
 
-      const dailyWorkingCounts = {};
-      days.forEach((m, dIdx) => {
-        let count = 0;
-        fullSchedules.forEach(empSched => {
-          const s = empSched.shifts[dIdx] || '上班';
-          if (s === '上班' || s === '特半' || s === '加班') count += 1;
-        });
-        dailyWorkingCounts[m.day] = count;
-      });
+    // 公務車模組介面渲染函式
+    function renderCarManagement() {
+      const cars = windowState.cars || [];
+      const records = windowState.carRecords || [];
+      const totalDistance = records.reduce((acc, r) => (r.returnMileage !== null && r.returnMileage >= r.startMileage) ? acc + (r.returnMileage - r.startMileage) : acc, 0);
+      const totalCost = records.reduce((acc, r) => acc + (r.refuelCost || 0), 0);
 
-      return { days, firstDayOffset, fullSchedules, dailyWorkingCounts, totalRedDays };
+      return `
+        <div class="space-y-6">
+          <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <div>
+              <h2 class="text-lg font-black text-slate-900">🚗 公務車企業管理與使用登記</h2>
+              <p class="text-xs text-slate-500 mt-0.5">可隨時新增車輛、設定自訂保養公里提醒、上傳照片與分段還車</p>
+            </div>
+            <div class="flex flex-wrap gap-2 items-center">
+              <span class="text-xs bg-indigo-50 text-indigo-700 font-bold px-3 py-1.5 rounded-xl border border-indigo-200">總行駛：${totalDistance.toLocaleString()} km</span>
+              <span class="text-xs bg-amber-50 text-amber-800 font-bold px-3 py-1.5 rounded-xl border border-amber-200">總油資：$${totalCost.toLocaleString()}</span>
+              <button onclick="openAddCarModal()" class="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition shadow-sm cursor-pointer">
+                <i class="fa-solid fa-plus mr-1"></i> 新增公務車
+              </button>
+              <button onclick="exportCarCSV()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition shadow-sm cursor-pointer">
+                <i class="fa-solid fa-file-excel mr-1"></i> 匯出 CSV
+              </button>
+            </div>
+          </div>
+
+          <!-- 車輛狀態與設定卡片 -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            ${cars.map(car => {
+              const interval = car.serviceInterval || 5000;
+              const kmSinceService = car.currentMileage - (car.lastServiceMileage || 0);
+              const needsService = kmSinceService >= interval;
+              const isInUse = car.status === 'in-use';
+
+              return `
+                <div class="bg-white p-5 rounded-3xl border shadow-sm space-y-4 ${isInUse ? 'border-amber-400 bg-amber-50/20' : 'border-slate-200'}">
+                  <div class="flex justify-between items-center">
+                    <div class="flex items-center gap-3">
+                      ${car.photoUrl ? `
+                        <img src="${car.photoUrl}" class="w-12 h-12 rounded-2xl object-cover border" />
+                      ` : `
+                        <div class="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+                          <i class="fa-solid fa-car text-lg"></i>
+                        </div>
+                      `}
+                      <div>
+                        <h3 class="font-black text-slate-900 text-base">${car.plate}</h3>
+                        <p class="text-xs text-slate-500">${car.model} (保養門檻: ${interval}km)</p>
+                      </div>
+                    </div>
+                    <div class="flex flex-col items-end gap-1">
+                      <span class="px-3 py-1 rounded-xl font-black text-xs ${isInUse ? 'bg-amber-500 text-slate-950 animate-pulse' : 'bg-emerald-600 text-white'}">
+                        ${isInUse ? `使用中 (${car.currentDriver || '駕駛'})` : '停放中'}
+                      </span>
+                      ${windowState.isAdmin ? `
+                        <div class="flex gap-1 mt-1">
+                          <button onclick="openEditCarModal('${car.id}')" class="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-0.5 rounded font-bold cursor-pointer">✏️ 編輯</button>
+                          <button onclick="deleteCar('${car.id}')" class="text-[10px] bg-rose-100 hover:bg-rose-200 text-rose-700 px-2 py-0.5 rounded font-bold cursor-pointer">🗑️ 刪除</button>
+                        </div>
+                      ` : ''}
+                    </div>
+                  </div>
+
+                  <div class="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-3 rounded-2xl border text-slate-600">
+                    <div>當前里程：<strong class="font-mono text-slate-900">${car.currentMileage.toLocaleString()} km</strong></div>
+                    <div>距上次保養：<strong class="font-mono ${needsService ? 'text-rose-600 font-black' : 'text-indigo-700'}">${kmSinceService.toLocaleString()} km</strong></div>
+                  </div>
+
+                  <div class="flex justify-between items-center pt-1">
+                    <button onclick="resetService('${car.id}')" class="text-slate-400 hover:text-indigo-600 text-xs font-bold transition cursor-pointer">
+                      <i class="fa-solid fa-wrench mr-1"></i> 登記已保養
+                    </button>
+                    ${isInUse ? `
+                      <button onclick="returnCarAction('${car.id}')" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs cursor-pointer shadow">
+                        ✅ 填寫還車登記
+                      </button>
+                    ` : `
+                      <button onclick="openCarBorrowModal('${car.id}')" class="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs cursor-pointer shadow">
+                        🔑 登記出發借用
+                      </button>
+                    `}
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+
+          <!-- 用車紀錄表格 -->
+          <div class="bg-white p-6 rounded-3xl border shadow-sm space-y-3">
+            <h3 class="font-extrabold text-slate-900 text-sm">📋 用車紀錄與還車管理</h3>
+            <div class="overflow-x-auto border rounded-2xl">
+              <table class="w-full text-xs text-left border-collapse">
+                <thead class="bg-slate-100 border-b text-slate-700">
+                  <tr>
+                    <th class="p-3 border-r">車牌 / 駕駛人</th>
+                    <th class="p-3 border-r">出發資訊</th>
+                    <th class="p-3 border-r">歸還資訊</th>
+                    <th class="p-3 border-r">行駛里程 / 油耗</th>
+                    <th class="p-3 border-r">備註 / 事由</th>
+                    <th class="p-3 text-center">操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${records.map(r => {
+                    const isReturned = r.returnMileage !== null;
+                    const distance = isReturned ? (r.returnMileage - r.startMileage) : '-';
+                    let fuelInfo = '-';
+                    if (isReturned && r.isRefuel) {
+                      const kmPerLiter = (distance !== '-' && r.refuelLiters > 0) ? (distance / r.refuelLiters).toFixed(1) : '-';
+                      fuelInfo = `<div class="text-[11px] text-amber-700 font-bold">加油: ${r.refuelLiters}L / $${r.refuelCost} (${kmPerLiter} km/L)</div>`;
+                    }
+                    return `
+                      <tr class="border-b hover:bg-slate-50">
+                        <td class="p-3 border-r">
+                          <div class="font-bold text-slate-900">${r.plate}</div>
+                          <div class="text-[11px] text-slate-500">👤 ${r.driver}</div>
+                        </td>
+                        <td class="p-3 border-r font-mono text-[11px]">
+                          <div>${r.startDate} ${r.startTime}</div>
+                          <div class="text-slate-500">${r.startMileage.toLocaleString()} km</div>
+                        </td>
+                        <td class="p-3 border-r font-mono text-[11px]">
+                          ${isReturned ? `
+                            <div>${r.returnDate} ${r.returnTime}</div>
+                            <div class="text-slate-500">${r.returnMileage.toLocaleString()} km</div>
+                          ` : `
+                            <button onclick="returnCarAction('${r.carId}')" class="px-3 py-1.5 bg-amber-500 text-slate-950 font-black rounded-xl text-xs shadow-sm animate-pulse cursor-pointer">
+                              <i class="fa-solid fa-car-on mr-1"></i> 填寫還車
+                            </button>
+                          `}
+                        </td>
+                        <td class="p-3 border-r font-mono">
+                          <div class="font-extrabold text-indigo-700">${distance !== '-' ? distance.toLocaleString() + ' km' : '-'}</div>
+                          ${fuelInfo}
+                        </td>
+                        <td class="p-3 border-r text-slate-600 max-w-xs truncate" title="${r.notes}">${r.notes || '-'}</td>
+                        <td class="p-3 text-center">
+                          <button onclick="deleteCarRecord('${r.id}')" class="text-slate-400 hover:text-rose-600 p-1 font-bold cursor-pointer">🗑️</button>
+                        </td>
+                      </tr>
+                    `;
+                  }).join('')}
+                  ${records.length === 0 ? `<tr><td colspan="6" class="p-6 text-center text-slate-400">尚無用車紀錄</td></tr>` : ''}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      `;
     }
 
     function renderLoginView() {
