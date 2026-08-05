@@ -109,6 +109,11 @@
       { id: 2, name: '蘇冠勳', date: todayStr, expected: '09:00', clockIn: '09:01', clockOut: '18:00', hoursWorked: 9.0, otHours: 0, status: '🟢 正常', location: '公司打卡' }
     ];
 
+    const initialCars = [
+      { id: 'C001', name: '全錸蒔公務車 01 (商務休旅)', plate: 'ABC-8888', status: '可使用', currentMileage: 15420, lastUser: '王聖銓', destination: '公司車庫', returnTime: '--' },
+      { id: 'C002', name: '全錸蒔物流車 02 (廂型冷藏)', plate: 'XYZ-6666', status: '可使用', currentMileage: 28900, lastUser: '張阿強', destination: '公司車庫', returnTime: '--' }
+    ];
+
     const windowState = {
       currentUser: JSON.parse(localStorage.getItem('shangyu_loginUser')) || null,
       activeModule: 'announcements',
@@ -132,6 +137,8 @@
       tasks: initialTasks,
       schedules: {},
       clockRecords: initialClockRecords,
+      cars: initialCars,
+      carLogs: [],
       evaluations: {},
       evalArchives: {},
       activeModal: null,
@@ -220,6 +227,14 @@
         windowState.clockRecords = data.clockRecords;
         hasChanges = true;
       }
+      if (data.cars && JSON.stringify(data.cars) !== JSON.stringify(windowState.cars)) {
+        windowState.cars = data.cars;
+        hasChanges = true;
+      }
+      if (data.carLogs && JSON.stringify(data.carLogs) !== JSON.stringify(windowState.carLogs)) {
+        windowState.carLogs = data.carLogs;
+        hasChanges = true;
+      }
       if (data.evaluations && JSON.stringify(data.evaluations) !== JSON.stringify(windowState.evaluations)) {
         windowState.evaluations = data.evaluations;
         hasChanges = true;
@@ -260,6 +275,8 @@
           tasks: windowState.tasks,
           schedules: windowState.schedules,
           clockRecords: windowState.clockRecords,
+          cars: windowState.cars,
+          carLogs: windowState.carLogs,
           evaluations: windowState.evaluations,
           evalArchives: windowState.evalArchives,
           logoUrl: windowState.logoUrl,
@@ -307,6 +324,8 @@
         tasks: windowState.tasks,
         schedules: windowState.schedules,
         clockRecords: windowState.clockRecords,
+        cars: windowState.cars,
+        carLogs: windowState.carLogs,
         evaluations: windowState.evaluations,
         evalArchives: windowState.evalArchives,
         slogan: windowState.slogan
@@ -333,6 +352,8 @@
           if (parsed.tasks) windowState.tasks = parsed.tasks;
           if (parsed.schedules) windowState.schedules = parsed.schedules;
           if (parsed.clockRecords) windowState.clockRecords = parsed.clockRecords;
+          if (parsed.cars) windowState.cars = parsed.cars;
+          if (parsed.carLogs) windowState.carLogs = parsed.carLogs;
           if (parsed.evaluations) windowState.evaluations = parsed.evaluations;
           if (parsed.evalArchives) windowState.evalArchives = parsed.evalArchives;
           if (parsed.slogan) windowState.slogan = parsed.slogan;
@@ -518,7 +539,7 @@
       showToast('✅ 打卡記錄已成功修改並同步至雲端！');
     };
 
-    window.handleAdminLoginSubmit = (e) => {
+    window.openAdminLoginSubmit = (e) => {
       e.preventDefault();
       const pin = document.getElementById('admin-pin-input').value;
       if (pin === '8888') {
@@ -644,7 +665,6 @@
       saveStateToCloud();
       windowState.activeModal = null;
       showToast('✅ 工作行程已儲存！');
-      render();
     };
 
     window.openCreateEmpModal = () => {
@@ -911,6 +931,62 @@
       });
       saveStateToCloud();
       showToast('⚡ 全店已同步帶入標準班表（國定假日與週末自動顯示休假）！');
+      render();
+    };
+
+    // 公務車管理相關動作函數
+    window.openCarBorrowModal = (carId) => {
+      const car = windowState.cars.find(c => c.id === carId);
+      if (!car) return;
+      windowState.modalData = { carId, destination: '', startMileage: car.currentMileage };
+      windowState.activeModal = 'carBorrowModal';
+      render();
+    };
+
+    window.handleBorrowCarSubmit = (e) => {
+      e.preventDefault();
+      const m = windowState.modalData;
+      const dest = document.getElementById('borrow-destination').value.trim();
+      const mileage = Number(document.getElementById('borrow-mileage').value);
+
+      windowState.cars = windowState.cars.map(c => c.id === m.carId ? {
+        ...c, status: '使用中', currentMileage: mileage, lastUser: windowState.currentUser.name, destination: dest, returnTime: '--'
+      } : c);
+
+      windowState.carLogs.unshift({
+        id: Date.now(), carId: m.carId, carName: windowState.cars.find(c => c.id === m.carId)?.name,
+        userName: windowState.currentUser.name, destination: dest, startMileage: mileage, endMileage: '--',
+        borrowTime: new Date().toLocaleString('zh-TW', { hour12: false }), returnTime: '使用中'
+      });
+
+      saveStateToCloud();
+      windowState.activeModal = null;
+      showToast('🚗 公務車借用登記成功！');
+      render();
+    };
+
+    window.returnCarAction = (carId) => {
+      const car = windowState.cars.find(c => c.id === carId);
+      if (!car) return;
+      const returnMileageInput = prompt(`請輸入【${car.name}】歸還時的累積里程數 (目前記錄: ${car.currentMileage} km)：`, car.currentMileage);
+      if (returnMileageInput === null) return;
+      const endMileage = Number(returnMileageInput);
+      if (isNaN(endMileage) || endMileage < car.currentMileage) {
+        return alert('❌ 里程數輸入錯誤，歸還里程不可小於出發里程！');
+      }
+
+      windowState.cars = windowState.cars.map(c => c.id === carId ? {
+        ...c, status: '可使用', currentMileage: endMileage, destination: '公司車庫', returnTime: new Date().toLocaleTimeString('zh-TW', { hour12: false })
+      } : c);
+
+      const log = windowState.carLogs.find(l => l.carId === carId && l.returnTime === '使用中');
+      if (log) {
+        log.endMileage = endMileage;
+        log.returnTime = new Date().toLocaleString('zh-TW', { hour12: false });
+      }
+
+      saveStateToCloud();
+      showToast('✅ 公務車已成功歸還！');
       render();
     };
 
@@ -1375,16 +1451,17 @@
             </div>
           </div>
 
-          <div class="grid grid-cols-3 sm:grid-cols-8 gap-1 text-[11px]">
+          <div class="grid grid-cols-3 sm:grid-cols-9 gap-1 text-[11px]">
             ${[
               { id: 'announcements', label: '1.布告欄' },
               { id: 'tasks', label: '2.工作行事曆' },
               { id: 'schedule', label: '3.月排班表' },
               { id: 'attendance', label: '4.員工打卡' },
               { id: 'lateReport', label: '5.遲到統計' },
-              { id: 'hrRoster', label: '6.HR員工名冊' },
-              { id: 'evaluation', label: '7.員工考核' },
-              { id: 'annualEval', label: '8.年度考核彙整' }
+              { id: 'carManagement', label: '6.公務車登記' },
+              { id: 'hrRoster', label: '7.HR員工名冊' },
+              { id: 'evaluation', label: '8.員工考核' },
+              { id: 'annualEval', label: '9.年度考核彙整' }
             ].map(tab => `
               <button
                 onclick="switchModule('${tab.id}')"
@@ -1397,6 +1474,87 @@
             `).join('')}
           </div>
         </header>
+      `;
+    }
+
+    // 新增：公務車管理模組介面
+    function renderCarManagement() {
+      const cars = windowState.cars || [];
+      const logs = windowState.carLogs || [];
+
+      return `
+        <div class="space-y-6">
+          <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 flex justify-between items-center">
+            <div>
+              <h2 class="text-lg font-black text-slate-900">🚗 公務車使用登記與控管系統</h2>
+              <p class="text-xs text-slate-500 mt-0.5">即時掌握公務車狀態、借用紀錄與行駛里程</p>
+            </div>
+            <span class="text-xs bg-sky-100 text-sky-800 font-bold px-3 py-1.5 rounded-xl border border-sky-300">總車輛數：${cars.length} 輛</span>
+          </div>
+
+          <!-- 車輛即時狀態卡片 -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            ${cars.map(car => `
+              <div class="bg-white p-6 rounded-3xl border shadow-sm space-y-4 ${car.status === '使用中' ? 'border-amber-400 bg-amber-50/20' : 'border-slate-200'}">
+                <div class="flex justify-between items-center">
+                  <h3 class="font-black text-slate-900 text-base">${car.name}</h3>
+                  <span class="px-3 py-1 rounded-xl font-black text-xs ${car.status === '使用中' ? 'bg-amber-500 text-slate-950' : 'bg-emerald-600 text-white'}">${car.status}</span>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-xs text-slate-600 bg-slate-50 p-3 rounded-2xl border">
+                  <div>車牌號碼：<strong class="font-mono text-slate-900">${car.plate}</strong></div>
+                  <div>目前里程：<strong class="font-mono text-indigo-700">${car.currentMileage} km</strong></div>
+                  <div>目前/最後使用：<strong class="text-slate-900">${car.lastUser || '無'}</strong></div>
+                  <div>目的地：<strong class="text-slate-900">${car.destination || '公司車庫'}</strong></div>
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                  ${car.status === '可使用' ? `
+                    <button onclick="openCarBorrowModal('${car.id}')" class="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs cursor-pointer shadow">
+                      🔑 登記借用公務車
+                    </button>
+                  ` : `
+                    <button onclick="returnCarAction('${car.id}')" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs cursor-pointer shadow">
+                      ✅ 歸還車輛
+                    </button>
+                  `}
+                </div>
+              </div>
+            `).join('')}
+          </div>
+
+          <!-- 用車歷史日誌紀錄 -->
+          <div class="bg-white p-6 rounded-3xl border shadow-sm space-y-3">
+            <h3 class="font-extrabold text-slate-900 text-sm">📋 公務車用車與里程借還紀錄表</h3>
+            <div class="overflow-x-auto border rounded-2xl">
+              <table class="w-full text-xs text-left border-collapse">
+                <thead class="bg-slate-100 border-b text-slate-700">
+                  <tr>
+                    <th class="p-3 border-r">車輛名稱</th>
+                    <th class="p-3 border-r">借用同仁</th>
+                    <th class="p-3 border-r">目的地 / 事由</th>
+                    <th class="p-3 border-r">出發里程</th>
+                    <th class="p-3 border-r">歸還里程</th>
+                    <th class="p-3 border-r">借車時間</th>
+                    <th class="p-3">歸還時間</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${logs.map(log => `
+                    <tr class="border-b hover:bg-slate-50">
+                      <td class="p-3 border-r font-bold">${log.carName}</td>
+                      <td class="p-3 border-r font-bold text-indigo-900">${log.userName}</td>
+                      <td class="p-3 border-r">${log.destination}</td>
+                      <td class="p-3 border-r font-mono">${log.startMileage} km</td>
+                      <td class="p-3 border-r font-mono">${log.endMileage !== '--' ? `${log.endMileage} km` : '使用中'}</td>
+                      <td class="p-3 border-r font-mono text-slate-500">${log.borrowTime}</td>
+                      <td class="p-3 font-mono ${log.returnTime === '使用中' ? 'text-amber-600 font-bold' : 'text-slate-500'}">${log.returnTime}</td>
+                    </tr>
+                  `).join('')}
+                  ${logs.length === 0 ? `<tr><td colspan="7" class="p-6 text-center text-slate-400">尚無公務車借用紀錄</td></tr>` : ''}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       `;
     }
 
@@ -1759,7 +1917,7 @@
             <div class="bg-slate-800/80 border border-indigo-500/30 rounded-2xl p-3 text-center space-y-1">
               <p class="text-[11px] text-amber-300 font-bold">🕒 目前系統即時時間</p>
               <p id="live-clock-display" class="text-3xl font-black font-mono text-white">--:--:--</p>
-              <!-- 新增：打卡範圍安全警示 -->
+              <!-- 新增：打卡範圍警示 -->
               <div class="mt-2 py-1.5 px-3 bg-rose-500/20 border border-rose-500/40 rounded-xl text-rose-300 font-bold text-[11px]">
                 📍 打卡範圍警示：僅限 台北市萬華區峨眉街122-1號 15公尺內
               </div>
@@ -2136,6 +2294,33 @@
         `;
       }
 
+      // 新增：公務車借用登記彈出視窗
+      if (windowState.activeModal === 'carBorrowModal') {
+        const m = windowState.modalData;
+        const car = windowState.cars.find(c => c.id === m.carId);
+        return `
+          <div class="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
+            <form onsubmit="handleBorrowCarSubmit(event)" class="bg-white rounded-3xl max-w-sm w-full p-6 space-y-3">
+              <h3 class="font-bold text-slate-900 text-base">🔑 登記借用【${car?.name}】</h3>
+              <div class="space-y-2 text-xs">
+                <div>
+                  <label class="block text-slate-600 mb-1 font-bold">🚗 目的地 / 事由 (必填)</label>
+                  <input type="text" id="borrow-destination" required placeholder="例: 往桃園央廚運送物料" class="w-full p-2.5 border rounded-xl font-bold" />
+                </div>
+                <div>
+                  <label class="block text-slate-600 mb-1 font-bold">📊 出發時里程數 (km)</label>
+                  <input type="number" id="borrow-mileage" required value="${m.startMileage}" class="w-full p-2.5 border rounded-xl font-mono font-bold text-center text-sm" />
+                </div>
+              </div>
+              <div class="flex justify-end gap-2 pt-2">
+                <button type="button" onclick="closeModal()" class="px-4 py-2 text-xs text-slate-600 cursor-pointer">取消</button>
+                <button type="submit" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold cursor-pointer">確認借出</button>
+              </div>
+            </form>
+          </div>
+        `;
+      }
+
       if (windowState.activeModal === 'taskModal') {
         const m = windowState.modalData;
         const taskCategories = ['調理包製作', '代工產品製作', '台北活動行程', '桃園活動行程', '台中活動行程', '台南活動行程', '高雄活動行程', '文書報價單作業', '私人行程'];
@@ -2174,12 +2359,12 @@
                   <input type="time" id="task-end" value="${m.endTime || '12:00'}" class="w-full p-2 border rounded-xl font-mono" />
                 </div>
                 <div>
-                  <label class="block text-slate-600 mb-1">地點</label>
+                  <label class="block text-slate-600 mb-1">地點 (預設中央廚房)</label>
                   <input type="text" id="task-location" value="${m.location || '中央廚房'}" class="w-full p-2 border rounded-xl font-bold text-indigo-900" />
                 </div>
               </div>
 
-              <!-- 新增：檔案上傳欄位 (圖片或 PDF) -->
+              <!-- 新增：工作任務檔案上傳 (圖片或 PDF) -->
               <div class="bg-indigo-50/70 p-3 rounded-2xl border border-indigo-200 space-y-1.5">
                 <label class="block text-xs font-extrabold text-indigo-950">📎 附加檔案 (圖片或 PDF)</label>
                 <input type="file" accept="image/*,application/pdf" onchange="handleTaskFileUploadInModal(event)" class="w-full p-1 border rounded-xl text-xs bg-white" />
@@ -2424,6 +2609,7 @@
         case 'schedule': moduleHTML = renderSchedule(); break;
         case 'attendance': moduleHTML = renderAttendance(); break;
         case 'lateReport': moduleHTML = renderLateReport(); break;
+        case 'carManagement': moduleHTML = renderCarManagement(); break;
         case 'hrRoster': moduleHTML = renderHrRoster(); break;
         case 'evaluation': moduleHTML = renderEvaluations(); break;
         case 'annualEval': moduleHTML = renderAnnualEvaluation(); break;
