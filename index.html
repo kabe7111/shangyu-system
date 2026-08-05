@@ -9,298 +9,82 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="全錸蒔餐飲">
   <meta name="theme-color" content="#0f172a">
-  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3448/3448609.png">
 
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- FontAwesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-  <style>
-    @media print {
-      body * { visibility: hidden !important; }
-      #print-modal-area, #print-modal-area * { visibility: visible !important; }
-      #print-modal-area {
-        position: absolute !important;
-        left: 0 !important;
-        top: 0 !important;
-        width: 100% !important;
-        background: white !important;
-        padding: 5px !important;
-        margin: 0 !important;
-      }
-      .no-print { display: none !important; }
-      @page { size: A4 portrait; margin: 10mm; }
-    }
-    .shift-select {
-      -webkit-appearance: none;
-      -moz-appearance: none;
-      appearance: none;
-      text-align: center;
-      text-align-last: center;
-      cursor: pointer;
-    }
-  </style>
 </head>
 <body class="bg-slate-100 min-h-screen font-sans text-slate-800">
 
   <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
-  <div id="app" class="min-h-screen"></div>
-  <div id="print-modal-area" class="hidden print:block"></div>
+  <div id="app"></div>
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-app.js";
-    import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-analytics.js";
-    import { getFirestore, doc, setDoc, getDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-firestore.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyARUQy_y-QEPlm7arCJujXQBcFMDTUPBxc",
-      authDomain: "shangyu-management.firebaseapp.com",
-      projectId: "shangyu-management",
-      storageBucket: "shangyu-management.firebasestorage.app",
-      messagingSenderId: "556392754430",
-      appId: "1:556392754430:web:3e75519cc30bdd454449af",
-      measurementId: "G-69RTLP6MTX"
-    };
-
-    let db = null;
-    try {
-      const app = initializeApp(firebaseConfig);
-      getAnalytics(app);
-      db = getFirestore(app);
-    } catch (e) {
-      console.warn("Firebase Init Warning: ", e);
-    }
-
-    const defaultLogoSvg = "data:image/svg+xml;utf8," + encodeURIComponent(`
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 220" width="200" height="220">
-        <path id="arch" d="M 30,62 A 70,70 0 0,1 170,62" fill="none"/>
-        <text font-family="Arial, sans-serif" font-size="16" font-weight="900" fill="#000">
-          <textPath href="#arch" startOffset="50%" text-anchor="middle">QUAN LAI SHI</textPath>
-        </text>
-        <path d="M 60,65 C 40,65 25,80 25,100 C 15,115 15,135 25,150 C 35,165 55,175 70,175 C 90,185 110,185 130,175 C 145,175 165,165 175,150 C 175,80 160,65 140,65 C 120,55 80,55 60,65 Z" fill="none" stroke="#000" stroke-width="7" stroke-linecap="round"/>
-        <path d="M 70,115 C 60,115 50,125 50,135 C 50,150 70,155 85,145 C 95,135 95,120 85,110 C 75,100 80,80 95,75 C 110,70 120,80 120,95 L 120,150 C 120,165 95,165 85,150 C 80,140 85,125 100,125 C 115,125 120,135 120,145" fill="none" stroke="#000" stroke-width="6" stroke-linecap="round"/>
-        <path d="M 100,85 L 115,85 M 85,135 L 105,135" stroke="#000" stroke-width="5" stroke-linecap="round"/>
-        <text x="100" y="208" font-family="Georgia, serif" font-size="16" font-weight="bold" fill="#000" text-anchor="middle">Since 2022</text>
-      </svg>
-    `);
-
-    const initialEmployees = [
-      { id: 'E001', name: '王聖銓', role: '亞太十大菁英名廚 / 總店長', dept: '門市/外場', type: '正職員工', status: '在職', healthCheckDate: '2025-06-15', pin: '8888', phone: '0912-345-678', emergencyContact: '王太太 (妻子)', emergencyPhone: '0911-111-222', address: '台北市信義區忠孝東路五段 100 號 5 樓', birthday: '1988-10-15', joinDate: '2022-03-15', leaveEntitled: 10, leaveUsed: 4.5, note: '擅長製作法式位上私廚料理，負責門市全盤營運' },
-      { id: 'E002', name: '陳副店', role: '門市副店長', dept: '門市/外場', type: '正職員工', status: '在職', healthCheckDate: '2025-08-01', pin: '8888', phone: '0923-456-789', emergencyContact: '陳先生 (父親)', emergencyPhone: '0922-222-333', address: '新北市板橋區文化路一段 88 號 3 樓', birthday: '1992-08-28', joinDate: '2023-08-01', leaveEntitled: 7, leaveUsed: 2, note: '支援外場調酒及現場服務動線規劃' },
-      { id: 'E003', name: '林小婷', role: '外場資深服務員', dept: '門市/外場', type: '兼職 (PT)', status: '在職', healthCheckDate: '2024-05-10', pin: '8888', phone: '0934-567-890', emergencyContact: '林女士 (母親)', emergencyPhone: '0933-333-444', address: '台北市中山區南京東路二段 45 號 2 樓', birthday: '1998-07-30', joinDate: '2024-02-10', leaveEntitled: 3, leaveUsed: 1, note: '兼職，今日壽星！體檢過期禁止排班' },
-      { id: 'E004', name: '張阿強', role: '內場備料廚師', dept: '兼職 (PT)', status: '在職', healthCheckDate: '2025-10-20', pin: '8888', phone: '0945-678-901', emergencyContact: '張大哥 (哥哥)', emergencyPhone: '0944-444-555', address: '桃園市中壢區中華路二段 12 號', birthday: '1995-09-12', joinDate: '2024-05-20', leaveEntitled: 3, leaveUsed: 0, note: '負責桃園央廚調理包排產與備料' },
-      { id: 'E005', name: '黃智勝', role: '主廚師傅', dept: '內場廚務', type: '正職員工', status: '在職', healthCheckDate: '2025-11-01', pin: '8888', phone: '0967-890-123', emergencyContact: '黃太太 (妻子)', emergencyPhone: '0966-666-777', address: '新北市三重區正義北路 50 號', birthday: '1990-12-18', joinDate: '2022-06-01', leaveEntitled: 10, leaveUsed: 5, note: '法式位上私廚與新菜色研發主管' },
-      { id: 'E006', name: '蘇冠勳', role: '活動支援人員', dept: '門市/外場', type: '兼職 (PT)', status: '在職', healthCheckDate: '2026-01-01', pin: '8888', phone: '0988-123-456', emergencyContact: '蘇家屬', emergencyPhone: '0988-654-321', address: '台北市大安區', birthday: '1995-01-01', joinDate: '2024-01-01', leaveEntitled: 3, leaveUsed: 0, note: '調酒與活動支援' }
-    ];
-
-    const initialAnnouncements = [
-      { id: 1, title: '🏆 賀！「全錸蒔國際餐飲」榮獲 2026 年度卓越餐飲最佳服務金獎！', level: '🔴 特急', category: '重要', isPinned: true, date: '2026-08-01', author: '總部總經理室', imageUrl: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80', content: '感謝全體同仁秉持真誠理念，發放特別福利津貼以資鼓勵！請店長依規發放予同仁。' }
-    ];
-
-    const nowToday = new Date();
-    const curYear = nowToday.getFullYear();
-    const curMonth = nowToday.getMonth() + 1;
-    const todayStr = `${curYear}-${String(curMonth).padStart(2,'0')}-${String(nowToday.getDate()).padStart(2,'0')}`;
-
-    const initialTasks = [
-      { id: 1, title: '當日暑期備料與調理包生產', content: '高溫滅菌調理包封口檢測與冷凍庫存盤點', category: '調理包製作', repeat: '單次', assignees: ['王聖銓', '張阿強', '黃智勝'], checklist: [{ item: '高溫滅菌袋盤点', checked: true }, { item: '真空封口機測試', checked: false }], date: todayStr, startTime: '08:30', endTime: '12:00', location: '中央廚房', status: '待處理', completedBy: '', fileUrl: '', fileName: '' }
-    ];
-
-    const initialClockRecords = [
-      { id: 1, name: '王聖銓', date: todayStr, expected: '09:00', clockIn: '08:52', clockOut: '18:05', hoursWorked: 9.0, otHours: 0, status: '🟢 正常', location: '公司打卡' },
-      { id: 2, name: '蘇冠勳', date: todayStr, expected: '09:00', clockIn: '09:01', clockOut: '18:00', hoursWorked: 9.0, otHours: 0, status: '🟢 正常', location: '公司打卡' }
-    ];
-
-    const initialCars = [
-      { id: 'car1', plate: 'ABC-1234', model: 'Toyota Corolla Altis', currentMileage: 15200, lastServiceMileage: 12000, serviceInterval: 5000, photoUrl: '', status: 'available', currentDriver: '' },
-      { id: 'car2', plate: 'XYZ-5678', model: 'Honda CR-V', currentMileage: 8420, lastServiceMileage: 5000, serviceInterval: 5000, photoUrl: '', status: 'available', currentDriver: '' }
-    ];
-    const initialCarRecords = [
-      {
-        id: 'rec_1', carId: 'car1', plate: 'ABC-1234', driver: '王聖銓',
-        startDate: '2026-08-01', startTime: '09:00', startMileage: 15050,
-        returnDate: '2026-08-01', returnTime: '12:30', returnMileage: 15200,
-        isRefuel: true, refuelLiters: 12.5, refuelCost: 420, notes: '拜訪客戶（車況正常）'
-      }
-    ];
-
-    const windowState = {
-      currentUser: JSON.parse(localStorage.getItem('shangyu_loginUser')) || null,
+  <script>
+    // 安全初始化資料與狀態
+    const todayStr = new Date().toISOString().slice(0, 10);
+    
+    let windowState = {
+      currentUser: JSON.parse(localStorage.getItem('shangyu_loginUser')) || { name: '王聖銓', role: '總店長' },
       activeModule: 'announcements',
       isAdmin: false,
-      showTerminatedEmps: false,
-      logoUrl: localStorage.getItem('shangyu_logo') || defaultLogoSvg,
-      slogan: localStorage.getItem('shangyu_slogan') || '饌玉炊金，全錸蒔誠獻 — 傳承真摯好味道',
-      scheduleYear: curYear,
-      scheduleMonth: curMonth,
+      slogan: '饌玉炊金，全錸蒔誠獻 — 傳承真摯好味道',
+      scheduleYear: new Date().getFullYear(),
+      scheduleMonth: new Date().getMonth() + 1,
       selectedTaskDate: todayStr,
-      selectedCardStaff: JSON.parse(localStorage.getItem('shangyu_loginUser'))?.name || '王聖銓',
-      selectedPrintEmpId: 'E001',
-      selectedPrintEvalName: '王聖銓',
-      selectedAnnualYear: curYear,
-      selectedAnnualEmp: '王聖銓',
-      selectedAnnFilter: '全部',
-      clockMode: 'store',
-      tripReason: '中央廚房排產',
-      employees: initialEmployees,
-      announcements: initialAnnouncements,
-      tasks: initialTasks,
+      employees: [
+        { id: 'E001', name: '王聖銓', role: '總店長', type: '正職員工', status: '在職', healthCheckDate: '2025-06-15', phone: '0912-345-678', leaveEntitled: 10, leaveUsed: 4.5 },
+        { id: 'E002', name: '陳副店', role: '門市副店長', type: '正職員工', status: '在職', healthCheckDate: '2025-08-01', phone: '0923-456-789', leaveEntitled: 7, leaveUsed: 2 },
+        { id: 'E003', name: '林小婷', role: '外場服務員', type: '兼職 (PT)', status: '在職', healthCheckDate: '2024-05-10', phone: '0934-567-890', leaveEntitled: 3, leaveUsed: 1 }
+      ],
+      cars: JSON.parse(localStorage.getItem('car_list')) || [
+        { id: 'car1', plate: 'ABC-1234', model: 'Toyota Corolla Altis', currentMileage: 15200, lastServiceMileage: 12000, serviceInterval: 5000, photoUrl: '', status: 'available', currentDriver: '' },
+        { id: 'car2', plate: 'XYZ-5678', model: 'Honda CR-V', currentMileage: 8420, lastServiceMileage: 5000, serviceInterval: 5000, photoUrl: '', status: 'available', currentDriver: '' }
+      ],
+      carRecords: JSON.parse(localStorage.getItem('car_records')) || [],
       schedules: {},
-      clockRecords: initialClockRecords,
-      cars: JSON.parse(localStorage.getItem('car_list')) || initialCars,
-      carRecords: JSON.parse(localStorage.getItem('car_records')) || initialCarRecords,
-      evaluations: {},
-      evalArchives: {},
+      clockRecords: [],
       activeModal: null,
       modalData: {}
     };
 
-    function getHealthCheckInfo(checkDateStr) {
-      if (!checkDateStr) return { status: '🔴 尚未建檔', isExpired: true, daysLeft: -999 };
-      const checkDate = new Date(checkDateStr);
-      const expireDate = new Date(checkDate);
-      expireDate.setFullYear(expireDate.getFullYear() + 1);
-      const today = new Date();
-      today.setHours(0,0,0,0);
-      const diffTime = expireDate - today;
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      if (diffDays < 0) {
-        return { status: `🔴 體檢已過期 (${Math.abs(diffDays)}天前)`, isExpired: true, daysLeft: diffDays };
-      } else if (diffDays <= 30) {
-        return { status: `🟡 體檢即將到期 (剩${diffDays}天)`, isExpired: false, daysLeft: diffDays, isWarning: true };
-      } else {
-        return { status: `🟢 合格 (效期至 ${expireDate.toISOString().slice(0,10)})`, isExpired: false, daysLeft: diffDays };
-      }
-    }
-
-    function showToast(message, type = 'success') {
+    function showToast(msg, type = 'success') {
       const container = document.getElementById('toast-container');
       if (!container) return;
-      const toast = document.createElement('div');
-      const bgClass = type === 'success' ? 'bg-emerald-600' : type === 'error' ? 'bg-rose-600' : 'bg-amber-500 text-slate-950';
-      toast.className = `${bgClass} text-white font-bold text-xs px-4 py-3 rounded-2xl shadow-xl transition-all duration-300 transform translate-y-2 pointer-events-none flex items-center justify-between min-w-[240px]`;
-      toast.innerHTML = `<span>${message}</span><button onclick="this.parentElement.remove()" class="ml-3 font-black text-sm opacity-80 hover:opacity-100">✕</button>`;
-      container.appendChild(toast);
-      setTimeout(() => {
-        toast.classList.add('opacity-0', '-translate-y-2');
-        setTimeout(() => toast.remove(), 300);
-      }, 3500);
+      const t = document.createElement('div');
+      t.className = `${type === 'success' ? 'bg-emerald-600' : 'bg-rose-600'} text-white font-bold text-xs px-4 py-3 rounded-2xl shadow-xl mb-2`;
+      t.textContent = msg;
+      container.appendChild(t);
+      setTimeout(() => t.remove(), 3000);
     }
 
-    function initFirebaseSync() {
-      if (!db) return;
-      try {
-        const docRef = doc(db, 'system', 'mainData');
-        getDoc(docRef).then((docSnap) => {
-          if (docSnap.exists()) applyCloudData(docSnap.data());
-          else saveStateToCloud();
-        }).catch(() => {});
-        onSnapshot(docRef, (docSnap) => {
-          if (docSnap.exists()) applyCloudData(docSnap.data());
-        }, () => {});
-      } catch (e) {}
-    }
-
-    function applyCloudData(data) {
-      let hasChanges = false;
-      if (data.employees && JSON.stringify(data.employees) !== JSON.stringify(windowState.employees)) { windowState.employees = data.employees; hasChanges = true; }
-      if (data.announcements && JSON.stringify(data.announcements) !== JSON.stringify(windowState.announcements)) { windowState.announcements = data.announcements; hasChanges = true; }
-      if (data.tasks && JSON.stringify(data.tasks) !== JSON.stringify(windowState.tasks)) { windowState.tasks = data.tasks; hasChanges = true; }
-      if (data.schedules && JSON.stringify(data.schedules) !== JSON.stringify(windowState.schedules)) { windowState.schedules = data.schedules; hasChanges = true; }
-      if (data.clockRecords && JSON.stringify(data.clockRecords) !== JSON.stringify(windowState.clockRecords)) { windowState.clockRecords = data.clockRecords; hasChanges = true; }
-      if (data.cars && JSON.stringify(data.cars) !== JSON.stringify(windowState.cars)) { windowState.cars = data.cars; hasChanges = true; }
-      if (data.carRecords && JSON.stringify(data.carRecords) !== JSON.stringify(windowState.carRecords)) { windowState.carRecords = data.carRecords; hasChanges = true; }
-      if (data.evaluations && JSON.stringify(data.evaluations) !== JSON.stringify(windowState.evaluations)) { windowState.evaluations = data.evaluations; hasChanges = true; }
-      if (data.evalArchives && JSON.stringify(data.evalArchives) !== JSON.stringify(windowState.evalArchives)) { windowState.evalArchives = data.evalArchives; hasChanges = true; }
-      if (data.logoUrl && data.logoUrl !== windowState.logoUrl) { windowState.logoUrl = data.logoUrl; hasChanges = true; }
-      if (data.slogan && data.slogan !== windowState.slogan) { windowState.slogan = data.slogan; hasChanges = true; }
-      if (hasChanges) render();
-    }
-
-    async function saveStateToCloud() {
-      if (!db) return;
-      try {
-        const docRef = doc(db, 'system', 'mainData');
-        await setDoc(docRef, {
-          employees: windowState.employees, announcements: windowState.announcements,
-          tasks: windowState.tasks, schedules: windowState.schedules,
-          clockRecords: windowState.clockRecords, cars: windowState.cars,
-          carRecords: windowState.carRecords, evaluations: windowState.evaluations,
-          evalArchives: windowState.evalArchives, logoUrl: windowState.logoUrl,
-          slogan: windowState.slogan, updatedAt: serverTimestamp()
-        });
-      } catch (err) {}
-    }
-
-    window.addEventListener('beforeunload', () => { if (db) saveStateToCloud(); });
-
-    function getUniqueClockRecords() {
-      const map = new Map();
-      const sorted = [...windowState.clockRecords].sort((a, b) => a.id - b.id);
-      sorted.forEach(rec => map.set(`${rec.name}_${rec.date}`, rec));
-      return Array.from(map.values());
-    }
-
-    window.switchModule = (moduleId) => { windowState.activeModule = moduleId; render(); };
-    window.openAdminModal = () => { windowState.activeModal = 'admin'; render(); };
-    window.openAnnModal = () => { windowState.activeModal = 'annModal'; render(); };
+    window.switchModule = (mod) => { windowState.activeModule = mod; render(); };
     window.closeModal = () => { windowState.activeModal = null; render(); };
-    window.toggleClockMode = (mode) => { windowState.clockMode = mode; render(); };
-    window.toggleAdminLock = () => { windowState.isAdmin = !windowState.isAdmin; showToast(windowState.isAdmin ? '🎉 管理員權限已解鎖' : '🔒 管理員權限已上鎖'); render(); };
-    window.toggleShowTerminatedEmps = () => { windowState.showTerminatedEmps = !windowState.showTerminatedEmps; render(); };
-
-    window.userLogout = () => {
-      windowState.currentUser = null;
-      localStorage.removeItem('shangyu_loginUser');
-      showToast('已安全登出系統');
-      render();
-    };
-
-    window.handleUserLoginSubmit = (e) => {
-      e.preventDefault();
-      const staffName = document.getElementById('login-staff-sel').value;
-      const pinInput = document.getElementById('login-pin').value.trim();
-      const emp = windowState.employees.find(e => e.name === staffName);
-      if (emp && (pinInput === emp.pin || pinInput === '8888')) {
-        windowState.currentUser = emp;
-        windowState.selectedCardStaff = emp.name;
-        localStorage.setItem('shangyu_loginUser', JSON.stringify(emp));
-        showToast(`🎉 歡迎登入！【${emp.name}】`);
-        render();
-      } else {
-        showToast('❌ PIN 密碼不正確！', 'error');
-      }
-    };
+    window.userLogout = () => { windowState.currentUser = null; localStorage.removeItem('shangyu_loginUser'); render(); };
+    window.toggleAdminLock = () => { windowState.isAdmin = !windowState.isAdmin; showToast(windowState.isAdmin ? '管理員已解鎖' : '管理員已上鎖'); render(); };
+    window.openAdminModal = () => { windowState.activeModal = 'admin'; render(); };
 
     window.handleAdminLoginSubmit = (e) => {
       e.preventDefault();
-      const pin = document.getElementById('admin-pin-input').value;
-      if (pin === '8888') { windowState.isAdmin = true; windowState.activeModal = null; showToast('🎉 管理員解鎖成功！'); }
-      else { showToast('❌ PIN 碼錯誤', 'error'); }
-      render();
-    };
-
-    window.executeClockAction = (type) => {
-      if (windowState.clockMode === 'businessTrip' && !windowState.tripReason.trim()) return showToast('⚠️ 請填寫外勤事由！', 'warning');
-      const timeStr = new Date().toLocaleTimeString('zh-TW', { hour12: false }).slice(0, 5);
-      const isLate = type === 'in' && timeStr > '09:00';
-      windowState.clockRecords.unshift({
-        id: Date.now(), name: windowState.currentUser.name, date: todayStr,
-        expected: '09:00', clockIn: type === 'in' ? timeStr : '--:--',
-        clockOut: type === 'out' ? timeStr : '--:--',
-        hoursWorked: 9.0, otHours: 0, status: isLate ? '⚠️ 遲到' : '🟢 正常',
-        location: windowState.clockMode === 'store' ? '公司打卡' : `🚗 外勤: ${windowState.tripReason}`
-      });
-      saveStateToCloud();
-      showToast(`🎉 打卡成功！`);
+      if (document.getElementById('admin-pin').value === '8888') {
+        windowState.isAdmin = true; windowState.activeModal = null; showToast('管理員解鎖成功');
+      } else { showToast('密碼錯誤', 'error'); }
       render();
     };
 
     // 公務車互動函數
-    window.openAddCarModal = () => { windowState.modalData = { isEdit: false, id: 'car_' + Date.now(), plate: '', model: '', currentMileage: 0, serviceInterval: 5000, photoUrl: '' }; windowState.activeModal = 'carEditModal'; render(); };
-    window.openEditCarModal = (id) => { const car = windowState.cars.find(c => c.id === id); if (car) { windowState.modalData = { isEdit: true, ...car }; windowState.activeModal = 'carEditModal'; render(); } };
-    window.handleCarPhotoUploadInModal = (e) => { const f = e.target.files[0]; if (f) { const r = new FileReader(); r.onload = (ev) => { windowState.modalData.photoUrl = ev.target.result; }; r.readAsDataURL(f); } };
+    window.openAddCarModal = () => {
+      windowState.modalData = { isEdit: false, id: 'car_' + Date.now(), plate: '', model: '', currentMileage: 0, serviceInterval: 5000, photoUrl: '' };
+      windowState.activeModal = 'carEditModal'; render();
+    };
+    window.openEditCarModal = (id) => {
+      const car = windowState.cars.find(c => c.id === id);
+      if (car) { windowState.modalData = { isEdit: true, ...car }; windowState.activeModal = 'carEditModal'; render(); }
+    };
+    window.handleCarPhotoUploadInModal = (e) => {
+      const f = e.target.files[0];
+      if (f) { const r = new FileReader(); r.onload = (ev) => { windowState.modalData.photoUrl = ev.target.result; }; r.readAsDataURL(f); }
+    };
     window.handleSaveCarSubmit = (e) => {
       e.preventDefault();
       const m = windowState.modalData;
@@ -314,19 +98,25 @@
         windowState.cars.push({ id: m.id, plate, model, currentMileage, lastServiceMileage: currentMileage, serviceInterval, photoUrl: m.photoUrl || '', status: 'available', currentDriver: '' });
       }
       localStorage.setItem('car_list', JSON.stringify(windowState.cars));
-      saveStateToCloud(); windowState.activeModal = null; showToast('✅ 車輛資料已儲存！'); render();
+      windowState.activeModal = null; showToast('車輛資料已儲存'); render();
     };
-    window.deleteCar = (id) => { if (confirm('確定刪除此車？')) { windowState.cars = windowState.cars.filter(c => c.id !== id); localStorage.setItem('car_list', JSON.stringify(windowState.cars)); saveStateToCloud(); render(); } };
-    window.openCarBorrowModal = (carId) => { windowState.modalData = { carId, startMileage: windowState.cars.find(c => c.id === carId)?.currentMileage || 0 }; windowState.activeModal = 'carBorrowModal'; render(); };
+    window.deleteCar = (id) => {
+      if (windowState.cars.length <= 1) return alert('至少需保留一台車');
+      if (confirm('確定刪除此車？')) { windowState.cars = windowState.cars.filter(c => c.id !== id); localStorage.setItem('car_list', JSON.stringify(windowState.cars)); render(); }
+    };
+    window.openCarBorrowModal = (carId) => {
+      windowState.modalData = { carId, startMileage: windowState.cars.find(c => c.id === carId)?.currentMileage || 0 };
+      windowState.activeModal = 'carBorrowModal'; render();
+    };
     window.handleBorrowCarSubmit = (e) => {
       e.preventDefault();
       const m = windowState.modalData;
       const dest = document.getElementById('borrow-destination').value.trim();
       const mileage = Number(document.getElementById('borrow-mileage').value);
       windowState.cars = windowState.cars.map(c => c.id === m.carId ? { ...c, status: 'in-use', currentMileage: mileage, currentDriver: windowState.currentUser.name } : c);
-      windowState.carRecords.unshift({ id: 'rec_' + Date.now(), carId: m.carId, plate: windowState.cars.find(c => c.id === m.carId)?.plate, driver: windowState.currentUser.name, startDate: todayStr, startTime: new Date().toTimeString().slice(0,5), startMileage: mileage, returnDate: null, returnTime: null, returnMileage: null, isRefuel: false, refuelLiters: 0, refuelCost: 0, notes: dest });
+      windowState.carRecords.unshift({ id: 'rec_' + Date.now(), carId: m.carId, plate: windowState.cars.find(c => c.id === m.carId)?.plate, driver: windowState.currentUser.name, startDate: todayStr, startMileage: mileage, returnMileage: null, notes: dest });
       localStorage.setItem('car_list', JSON.stringify(windowState.cars)); localStorage.setItem('car_records', JSON.stringify(windowState.carRecords));
-      saveStateToCloud(); windowState.activeModal = null; showToast('🚗 出發登記成功！'); render();
+      windowState.activeModal = null; showToast('出發登記成功'); render();
     };
     window.returnCarAction = (carId) => {
       const rec = windowState.carRecords.find(r => r.carId === carId && r.returnMileage === null);
@@ -336,287 +126,132 @@
       e.preventDefault();
       const m = windowState.modalData;
       const retMil = Number(document.getElementById('modal-return-mileage').value);
-      const isRef = document.getElementById('modal-is-refuel')?.checked || false;
       const rec = windowState.carRecords.find(r => r.id === m.recordId);
-      if (rec) { rec.returnDate = todayStr; rec.returnTime = new Date().toTimeString().slice(0,5); rec.returnMileage = retMil; rec.isRefuel = isRef; rec.refuelLiters = isRef ? Number(document.getElementById('modal-refuel-liters').value)||0 : 0; rec.refuelCost = isRef ? Number(document.getElementById('modal-refuel-cost').value)||0 : 0; rec.notes = document.getElementById('modal-notes').value || '車況正常'; }
+      if (rec) { rec.returnDate = todayStr; rec.returnMileage = retMil; rec.notes = document.getElementById('modal-notes').value || '車況正常'; }
       windowState.cars = windowState.cars.map(c => c.id === m.carId ? { ...c, currentMileage: retMil, status: 'available', currentDriver: '' } : c);
       localStorage.setItem('car_list', JSON.stringify(windowState.cars)); localStorage.setItem('car_records', JSON.stringify(windowState.carRecords));
-      saveStateToCloud(); windowState.activeModal = null; showToast('✅ 還車完成！'); render();
+      windowState.activeModal = null; showToast('還車完成'); render();
     };
-    window.toggleModalRefuelFields = () => { const el = document.getElementById('modal-refuel-details'); if(el) el.classList.toggle('hidden'); };
-    window.resetService = (carId) => { windowState.cars = windowState.cars.map(c => c.id === carId ? { ...c, lastServiceMileage: c.currentMileage } : c); localStorage.setItem('car_list', JSON.stringify(windowState.cars)); saveStateToCloud(); showToast('🛠️ 保養歸零成功！'); render(); };
-    window.deleteCarRecord = (id) => { if(confirm('確定刪除紀錄？')) { windowState.carRecords = windowState.carRecords.filter(r => r.id !== id); localStorage.setItem('car_records', JSON.stringify(windowState.carRecords)); saveStateToCloud(); render(); } };
+    window.resetService = (carId) => {
+      windowState.cars = windowState.cars.map(c => c.id === carId ? { ...c, lastServiceMileage: c.currentMileage } : c);
+      localStorage.setItem('car_list', JSON.stringify(windowState.cars)); showToast('保養歸零成功'); render();
+    };
 
-    // 核心模組與輔助函數
-    function shiftTypesConfig() {
-      return [
-        { type: '上班', label: '上班', color: 'bg-sky-100 text-sky-900 border-sky-300 font-bold' },
-        { type: '休假', label: '休假', color: 'bg-rose-100 text-rose-900 border-rose-300 font-bold' },
-        { type: '加班', label: '加班', color: 'bg-amber-200 text-amber-950 border-amber-400 font-extrabold' },
-        { type: '特半', label: '特半', color: 'bg-emerald-100 text-emerald-900 border-emerald-300 font-bold' },
-        { type: '特一', label: '特一', color: 'bg-emerald-200 text-emerald-950 border-emerald-400 font-extrabold' },
-        { type: '事假', label: '事假', color: 'bg-amber-100 text-amber-900 border-amber-300 font-bold' },
-        { type: '病假', label: '病假', color: 'bg-orange-100 text-orange-900 border-orange-300 font-bold' },
-        { type: '陪產', label: '陪產', color: 'bg-purple-100 text-purple-900 border-purple-300 font-bold' },
-        { type: '婚假', label: '婚假', color: 'bg-pink-100 text-pink-900 border-pink-300 font-bold' },
-        { type: '喪假', label: '喪假', color: 'bg-slate-200 text-slate-900 border-slate-400 font-bold' }
-      ];
-    }
-
-    function getNationalHolidayName(year, month, day) {
-      const key = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-      const holidays = { [`${year}-01-01`]: '元旦', [`${year}-02-28`]: '和平紀念日', [`${year}-04-04`]: '兒童節', [`${year}-04-05`]: '清明節', [`${year}-05-01`]: '勞動節', [`${year}-10-10`]: '國慶日' };
-      return holidays[key] || null;
-    }
-
-    function getMonthDaysData(year, month) {
-      const daysInMonth = new Date(year, month, 0).getDate();
-      const firstDayOffset = new Date(year, month - 1, 1).getDay();
-      const days = [];
-      for (let i = 1; i <= daysInMonth; i++) {
-        const dObj = new Date(year, month - 1, i);
-        const dayOfWeek = dObj.getDay();
-        const weekDay = ['（日）', '（一）', '（二）', '（三）', '（四）', '（五）', '（六）'][dayOfWeek];
-        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-        const holidayName = getNationalHolidayName(year, month, i);
-        days.push({ day: i, dateStr: `${year}-${String(month).padStart(2,'0')}-${String(i).padStart(2,'0')}`, weekDay, isWeekend, holidayName, isHoliday: !!holidayName });
-      }
-      return { days, firstDayOffset, totalRedDays: days.filter(d => d.isWeekend || d.isHoliday).length };
-    }
-
-    function getStaffShiftOnDate(empName, dateStr) {
-      const dObj = new Date(dateStr);
-      const y = dObj.getFullYear(), m = dObj.getMonth() + 1;
-      const key = `${y}-${m}-${empName}`;
-      const userShifts = windowState.schedules[key];
-      const isH = getNationalHolidayName(y, m, dObj.getDate()) || dObj.getDay() === 0 || dObj.getDay() === 6;
-      return userShifts ? (userShifts[dObj.getDate() - 1] || (isH ? '休假' : '上班')) : (isH ? '休假' : '上班');
-    }
-
-    function calculateScheduleAndConflicts() {
-      const { days, firstDayOffset, totalRedDays } = getMonthDaysData(windowState.scheduleYear, windowState.scheduleMonth);
-      const activeEmps = windowState.employees.filter(e => e.status !== '離職');
-      const fullSchedules = activeEmps.map(emp => {
-        const key = `${windowState.scheduleYear}-${windowState.scheduleMonth}-${emp.name}`;
-        const shifts = windowState.schedules[key] || days.map(m => (m.isWeekend || m.isHoliday ? '休假' : '上班'));
-        let scheduledOffCount = 0;
-        shifts.forEach(s => { if (['休假', '事假', '病假', '陪產', '婚假', '喪假', '特一'].includes(s)) scheduledOffCount += 1; else if (s === '特半') scheduledOffCount += 0.5; });
-        const hcInfo = getHealthCheckInfo(emp.healthCheckDate);
-        return { empName: emp.name, role: emp.role, isHealthExpired: hcInfo.isExpired, shifts, requiredOffDays: totalRedDays, scheduledOffCount, remainingUnscheduledOff: totalRedDays - scheduledOffCount };
-      });
-      const dailyWorkingCounts = {};
-      days.forEach((m, dIdx) => {
-        let count = 0;
-        fullSchedules.forEach(es => { if (['上班', '特半', '加班'].includes(es.shifts[dIdx] || '上班')) count++; });
-        dailyWorkingCounts[m.day] = count;
-      });
-      return { days, firstDayOffset, fullSchedules, dailyWorkingCounts, totalRedDays };
-    }
-
-    function maskText(text, type) {
-      if (windowState.isAdmin) return text;
-      if (!text) return '***';
-      if (type === 'phone') return text.slice(0, 3) + '****' + text.slice(-2);
-      if (type === 'address') return text.slice(0, 6) + '***';
-      return text;
-    }
-
-    // 模組介面渲染
-    function renderAnnouncements() {
-      const sorted = [...windowState.announcements].sort((a, b) => (b.isPinned ? 1 : -1));
+    function renderCarManagement() {
+      const cars = windowState.cars || [];
+      const records = windowState.carRecords || [];
       return `
-        <div class="space-y-4">
-          <div class="bg-white p-4 rounded-2xl border flex justify-between items-center shadow-xs">
-            <h2 class="font-extrabold text-slate-900 text-base">📢 總部即時布告欄</h2>
-            ${windowState.isAdmin ? `<button onclick="openAnnModal()" class="bg-indigo-600 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold cursor-pointer">+ 發布新公告</button>` : ''}
-          </div>
-          <div class="space-y-3">
-            ${sorted.map(ann => `
-              <div class="bg-white p-5 rounded-2xl border shadow-xs space-y-2 relative ${ann.isPinned ? 'border-amber-400 bg-amber-50/20' : 'border-slate-200'}">
-                <div class="flex justify-between items-center">
-                  <span class="px-2.5 py-0.5 font-extrabold text-[11px] rounded-lg border bg-amber-100 text-amber-900">${ann.level || '🟠 重要'}</span>
-                  ${windowState.isAdmin ? `<button onclick="deleteAnnouncement(${ann.id})" class="text-rose-600 font-bold text-xs">🗑️ 刪除</button>` : ''}
-                </div>
-                <h3 class="font-bold text-slate-900 text-base">${ann.title}</h3>
-                <p class="text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border">${ann.content}</p>
-                ${ann.imageUrl ? `<img src="${ann.imageUrl}" class="mt-2 rounded-xl max-h-64 object-contain mx-auto border" />` : ''}
-              </div>
-            `).join('')}
-          </div>
-        </div>
-      `;
-    }
-
-    function renderTasks() {
-      const { days, firstDayOffset } = getMonthDaysData(windowState.scheduleYear, windowState.scheduleMonth);
-      const todayTaskList = [...windowState.tasks.filter(t => t.date === todayStr)].sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
-      const selectedTaskList = [...windowState.tasks.filter(t => t.date === windowState.selectedTaskDate)].sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
-
-      return `
-        <div class="space-y-4">
-          <div class="bg-gradient-to-r from-indigo-900 via-slate-900 to-indigo-950 text-white p-5 rounded-2xl shadow-md space-y-3">
-            <div class="flex justify-between items-center border-b border-indigo-400/30 pb-3">
-              <h2 class="font-black text-white text-lg">☀️【${todayStr}】今日工作排程與備料檢查</h2>
-              <button onclick="openCreateTaskModal('${todayStr}')" class="bg-amber-400 text-slate-950 px-3.5 py-1.5 rounded-xl font-black text-xs cursor-pointer">+ 新增今日工作</button>
+        <div class="space-y-6">
+          <div class="bg-white p-6 rounded-3xl border flex justify-between items-center shadow-sm">
+            <div>
+              <h2 class="text-lg font-black text-slate-900">🚗 公務車企業管理與使用登記</h2>
+              <p class="text-xs text-slate-500">支援新增車輛、上傳照片、自訂保養里程提醒與分段還車</p>
             </div>
-            <div class="space-y-2">
-              ${todayTaskList.map(t => `
-                <div class="p-3.5 rounded-xl text-xs space-y-2 bg-white/10 border border-white/20 text-white">
+            <button onclick="openAddCarModal()" class="bg-slate-900 text-white text-xs font-bold px-4 py-2 rounded-xl">＋ 新增公務車</button>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            ${cars.map(car => {
+              const interval = car.serviceInterval || 5000;
+              const kmSinceService = car.currentMileage - (car.lastServiceMileage || 0);
+              const needsService = kmSinceService >= interval;
+              const isInUse = car.status === 'in-use';
+              return `
+                <div class="bg-white p-5 rounded-3xl border shadow-sm space-y-3 ${isInUse ? 'border-amber-400 bg-amber-50/20' : ''}">
                   <div class="flex justify-between items-center">
-                    <span class="px-2 py-0.5 bg-amber-400 text-slate-950 font-black rounded-lg text-[10px]">${t.category}</span>
-                    <button onclick="initiateCompleteTask(${t.id})" class="px-2.5 py-1 rounded font-bold ${t.status === '已完成' ? 'bg-emerald-500 text-slate-950' : 'bg-amber-400 text-slate-950'}">${t.status === '已完成' ? '✅ 已完成' : '⏳ 點擊完成'}</button>
+                    <div class="flex items-center gap-3">
+                      ${car.photoUrl ? `<img src="${car.photoUrl}" class="w-12 h-12 rounded-2xl object-cover border" />` : `<div class="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold"><i class="fa-solid fa-car"></i></div>`}
+                      <div>
+                        <h3 class="font-black text-slate-900">${car.plate}</h3>
+                        <p class="text-xs text-slate-500">${car.model} (保養門檻:${interval}km)</p>
+                      </div>
+                    </div>
+                    <div class="text-right">
+                      <span class="px-2.5 py-1 rounded-lg text-xs font-bold ${isInUse ? 'bg-amber-500 text-slate-950' : 'bg-emerald-600 text-white'}">${isInUse ? '使用中' : '停放中'}</span>
+                      ${windowState.isAdmin ? `<div class="mt-1"><button onclick="openEditCarModal('${car.id}')" class="text-[10px] bg-slate-100 px-2 py-0.5 rounded mr-1">編輯</button><button onclick="deleteCar('${car.id}')" class="text-[10px] bg-rose-100 text-rose-700 px-2 py-0.5 rounded">刪除</button></div>` : ''}
+                    </div>
                   </div>
-                  <h4 class="font-black text-amber-300 text-sm">${t.title}</h4>
-                  <p class="text-slate-200 bg-black/30 p-2 rounded-lg">${t.content}</p>
+                  <div class="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-3 rounded-2xl border">
+                    <div>當前里程：<strong class="font-mono">${car.currentMileage.toLocaleString()} km</strong></div>
+                    <div>距上次保養：<strong class="font-mono ${needsService ? 'text-rose-600 font-bold' : 'text-indigo-700'}">${kmSinceService.toLocaleString()} km</strong></div>
+                  </div>
+                  <div class="flex justify-between items-center pt-1">
+                    <button onclick="resetService('${car.id}')" class="text-xs text-slate-500 hover:text-indigo-600 font-bold">🛠️ 登記已保養</button>
+                    ${isInUse ? `<button onclick="returnCarAction('${car.id}')" class="px-3 py-1.5 bg-emerald-600 text-white font-bold rounded-xl text-xs">✅ 填寫還車</button>` : `<button onclick="openCarBorrowModal('${car.id}')" class="px-3 py-1.5 bg-slate-900 text-white font-bold rounded-xl text-xs">🔑 登記出發</button>`}
+                  </div>
                 </div>
-              `).join('')}
-              ${todayTaskList.length === 0 ? `<p class="text-xs text-slate-300 text-center py-4">今天尚無安排工作行程</p>` : ''}
-            </div>
+              `;
+            }).join('')}
           </div>
+        </div>
+      `;
+    }
 
-          <div class="bg-white p-4 rounded-2xl border shadow-xs space-y-3">
-            <div class="flex justify-between items-center border-b pb-2">
-              <h3 class="font-extrabold text-slate-900 text-sm">🗓️ 月曆總覽 (點擊日期檢視行程)</h3>
-              <button onclick="openCreateTaskModal('${windowState.selectedTaskDate}')" class="bg-indigo-600 text-white px-3 py-1 rounded-xl font-bold text-xs">+ 新增行程</button>
-            </div>
-            <div class="grid grid-cols-7 gap-1 text-center text-xs">
-              ${['日', '一', '二', '三', '四', '五', '六'].map(d => `<div class="font-black py-1 ${d === '日' || d === '六' ? 'text-rose-600' : 'text-slate-500'}">週${d}</div>`).join('')}
-              ${Array.from({ length: firstDayOffset }).map(() => `<div class="min-h-[75px] bg-slate-50 rounded-xl border border-dashed border-slate-200"></div>`).join('')}
-              ${days.map(m => `
-                <div onclick="selectCalendarDate('${m.dateStr}')" class="min-h-[75px] p-1.5 rounded-xl border text-left cursor-pointer transition-all ${windowState.selectedTaskDate === m.dateStr ? 'border-indigo-600 bg-indigo-50/70 ring-2 ring-indigo-500' : 'bg-white hover:bg-slate-50'}">
-                  <div class="text-[11px] font-mono font-black ${m.isWeekend || m.isHoliday ? 'text-rose-600' : 'text-slate-800'}">${m.day}日</div>
+    function renderModals() {
+      if (!windowState.activeModal) return '';
+      if (windowState.activeModal === 'admin') {
+        return `
+          <div class="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
+            <form onsubmit="handleAdminLoginSubmit(event)" class="bg-white rounded-3xl max-w-sm w-full p-6 space-y-3">
+              <h3 class="font-bold text-base">🔑 解鎖管理員</h3>
+              <input type="password" maxlength="4" id="admin-pin" required placeholder="••••" class="w-full p-2.5 border rounded-xl text-center font-mono text-lg" />
+              <div class="flex justify-end gap-2 pt-2"><button type="button" onclick="closeModal()" class="px-4 py-2 text-xs">取消</button><button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold">解鎖</button></div>
+            </form>
+          </div>
+        `;
+      }
+      if (windowState.activeModal === 'carEditModal') {
+        const m = windowState.modalData;
+        return `
+          <div class="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
+            <form onsubmit="handleSaveCarSubmit(event)" class="bg-white rounded-3xl max-w-md w-full p-6 space-y-3">
+              <h3 class="font-bold text-base">${m.isEdit ? '✏️ 編輯公務車' : '➕ 新增公務車'}</h3>
+              <div class="space-y-2 text-xs">
+                <div class="grid grid-cols-2 gap-2">
+                  <div><label class="font-bold">車牌</label><input type="text" id="car-modal-plate" required value="${m.plate || ''}" class="w-full p-2.5 border rounded-xl font-bold" /></div>
+                  <div><label class="font-bold">型號</label><input type="text" id="car-modal-model" required value="${m.model || ''}" class="w-full p-2.5 border rounded-xl font-bold" /></div>
                 </div>
-              `).join('')}
-            </div>
-          </div>
-        </div>
-      `;
-    }
-
-    function renderSchedule() {
-      const { days, fullSchedules, dailyWorkingCounts, totalRedDays } = calculateScheduleAndConflicts();
-      const shiftOptionsList = ['上班', '休假', '加班', '特半', '特一', '事假', '病假', '陪產', '婚假', '喪假'];
-
-      return `
-        <div class="bg-white p-4 rounded-2xl border space-y-4 shadow-xs">
-          <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-2 border-b pb-3">
-            <h2 class="font-extrabold text-slate-900 text-base">📅 全月排班表 (點擊儲存格更換班別)</h2>
-            <button onclick="autoFillDefaultSchedule()" class="bg-indigo-600 text-white font-bold px-3 py-1.5 rounded-xl text-xs cursor-pointer">⚡ 填入標準班表</button>
-          </div>
-          <div class="overflow-x-auto border rounded-2xl">
-            <table class="w-full text-xs min-w-[1250px] border-collapse">
-              <thead>
-                <tr class="bg-slate-100 border-b text-slate-700">
-                  <th class="p-2.5 w-44 border-r sticky left-0 bg-slate-100 z-20">同仁姓名</th>
-                  ${days.map(m => `<th class="p-1.5 text-center border-r min-w-[56px] ${m.isWeekend || m.isHoliday ? 'bg-rose-50/50 text-rose-700 font-bold' : ''}">${windowState.scheduleMonth}/${m.day}</th>`).join('')}
-                </tr>
-              </thead>
-              <tbody>
-                ${fullSchedules.map(empSched => `
-                  <tr class="border-b hover:bg-slate-50">
-                    <td class="p-2.5 font-bold sticky left-0 bg-white border-r z-10">${empSched.empName}</td>
-                    ${days.map((m, dIdx) => {
-                      const shiftVal = empSched.shifts[dIdx] || '上班';
-                      return `
-                        <td class="p-1.5 text-center border-r">
-                          <select onchange="handleShiftSelectChange('${empSched.empName}', ${dIdx}, this)" class="shift-select w-full py-2 px-1 rounded-lg border text-[11px] font-bold">
-                            ${shiftOptionsList.map(opt => `<option value="${opt}" ${shiftVal === opt ? 'selected' : ''}>${opt}</option>`).join('')}
-                          </select>
-                        </td>
-                      `;
-                    }).join('')}
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      `;
-    }
-
-    function renderAttendance() {
-      const { days } = getMonthDaysData(windowState.scheduleYear, windowState.scheduleMonth);
-      const targetEmp = windowState.employees.find(e => e.name === windowState.selectedCardStaff) || windowState.employees[0];
-
-      return `
-        <div class="space-y-4">
-          <div class="bg-gradient-to-r from-slate-900 to-indigo-950 text-white p-5 rounded-2xl space-y-3 shadow-lg">
-            <h3 class="text-xl font-bold">🏢 公司考勤與打卡</h3>
-            <div class="bg-slate-800 p-3 rounded-2xl text-center">
-              <p class="text-xs text-amber-300">目前即時時間</p>
-              <p id="live-clock-display" class="text-3xl font-black font-mono text-white">--:--:--</p>
-            </div>
-            <div class="flex gap-2">
-              <button onclick="executeClockAction('in')" class="flex-1 bg-emerald-500 font-bold py-3 rounded-xl text-xs text-slate-950 cursor-pointer">☀️ 上班打卡</button>
-              <button onclick="executeClockAction('out')" class="flex-1 bg-rose-600 font-bold py-3 rounded-xl text-xs text-white cursor-pointer">🌙 下班打卡</button>
-            </div>
-          </div>
-          <div class="bg-white p-5 rounded-2xl border shadow-md space-y-3">
-            <h3 class="font-black text-slate-900 text-base">🗓️ ${targetEmp.name} 考勤紀錄表</h3>
-            <table class="w-full text-xs text-center border">
-              <thead class="bg-slate-100 border-b">
-                <tr><th class="p-2 border-r">日期</th><th class="p-2 border-r">上班刷卡</th><th class="p-2 border-r">下班刷卡</th><th class="p-2">工時狀態</th></tr>
-              </thead>
-              <tbody>
-                ${days.map(m => {
-                  const rec = windowState.clockRecords.find(c => c.name === targetEmp.name && c.date === m.dateStr);
-                  return `
-                    <tr class="border-b">
-                      <td class="p-2 border-r font-mono">${windowState.scheduleMonth}/${m.day}</td>
-                      <td class="p-2 border-r font-mono">${rec ? rec.clockIn : '--:--'}</td>
-                      <td class="p-2 border-r font-mono">${rec ? rec.clockOut : '--:--'}</td>
-                      <td class="p-2">${rec ? rec.status : '-'}</td>
-                    </tr>
-                  `;
-                }).join('')}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      `;
-    }
-
-    function renderLateReport() {
-      const uniqueRecords = getUniqueClockRecords();
-      return `
-        <div class="bg-white p-5 rounded-2xl border space-y-4">
-          <h2 class="font-extrabold text-slate-900 text-base">📊 遲到統計報表</h2>
-          <table class="w-full text-xs text-left border">
-            <thead class="bg-slate-100 border-b"><tr><th class="p-2">姓名</th><th class="p-2">職稱</th><th class="p-2">遲到次數</th></tr></thead>
-            <tbody>
-              ${windowState.employees.map(e => `
-                <tr class="border-b"><td class="p-2 font-bold">${e.name}</td><td class="p-2">${e.role}</td><td class="p-2 text-rose-600 font-black">${uniqueRecords.filter(c => c.name === e.name && c.status.includes('遲到')).length} 次</td></tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
-      `;
-    }
-
-    function renderHrRoster() {
-      const activeList = windowState.employees.filter(e => e.status !== '離職');
-      return `
-        <div class="bg-white p-5 rounded-2xl border space-y-4">
-          <h2 class="font-extrabold text-slate-900 text-base">👥 HR 門市員工名冊</h2>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            ${activeList.map(emp => `
-              <div class="bg-white p-4 rounded-2xl border space-y-1 text-xs shadow-xs">
-                <div class="font-black text-sm">${emp.name} (${emp.role})</div>
-                <p>電話：${maskText(emp.phone, 'phone')}</p>
-                <p>特休剩餘：${emp.leaveEntitled - emp.leaveUsed} 天</p>
+                <div class="grid grid-cols-2 gap-2">
+                  <div><label class="font-bold">當前里程</label><input type="number" id="car-modal-mileage" required value="${m.currentMileage || 0}" class="w-full p-2.5 border rounded-xl font-mono" /></div>
+                  <div><label class="font-bold">保養間隔</label><input type="number" id="car-modal-interval" required value="${m.serviceInterval || 5000}" class="w-full p-2.5 border rounded-xl font-mono" /></div>
+                </div>
+                <div><label class="font-bold">照片</label><input type="file" accept="image/*" onchange="handleCarPhotoUploadInModal(event)" class="w-full p-1 border rounded-xl text-xs" /></div>
               </div>
-            `).join('')}
+              <div class="flex justify-end gap-2 pt-2"><button type="button" onclick="closeModal()" class="px-4 py-2 text-xs">取消</button><button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold">儲存</button></div>
+            </form>
           </div>
-        </div>
-      `;
-    }
-
-    function renderEvaluations() {
-      return `<div class="bg-white p-6 rounded-2xl border"><h2 class="font-bold text-base">🏅 員工績效考核</h2><p class="text-xs text-slate-500 mt-2">請透過管理員權限進行考核封存與評分。</p></div>`;
-    }
-
-    function renderAnnualEvaluation() {
-      return `<div class="bg-white p-6 rounded-2xl border"><h2 class="font-bold text-base">📈 年度考核彙整</h2><p class="text-xs text-slate-500 mt-2">年度彙整資料將依月份封存自動帶入。</p></div>`;
+        `;
+      }
+      if (windowState.activeModal === 'carBorrowModal') {
+        const m = windowState.modalData;
+        return `
+          <div class="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
+            <form onsubmit="handleBorrowCarSubmit(event)" class="bg-white rounded-3xl max-w-sm w-full p-6 space-y-3">
+              <h3 class="font-bold text-base">🔑 登記借用</h3>
+              <div class="space-y-2 text-xs">
+                <div><label class="font-bold">目的地/事由</label><input type="text" id="borrow-destination" required class="w-full p-2.5 border rounded-xl" /></div>
+                <div><label class="font-bold">出發里程</label><input type="number" id="borrow-mileage" required value="${m.startMileage}" class="w-full p-2.5 border rounded-xl font-mono" /></div>
+              </div>
+              <div class="flex justify-end gap-2 pt-2"><button type="button" onclick="closeModal()" class="px-4 py-2 text-xs">取消</button><button type="submit" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold">確認</button></div>
+            </form>
+          </div>
+        `;
+      }
+      if (windowState.activeModal === 'carReturnModal') {
+        const m = windowState.modalData;
+        return `
+          <div class="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
+            <form onsubmit="handleReturnCarSubmit(event)" class="bg-white rounded-3xl max-w-md w-full p-6 space-y-3">
+              <h3 class="font-bold text-base">✅ 還車登記</h3>
+              <div class="space-y-2 text-xs">
+                <div><label class="font-bold">歸還里程</label><input type="number" id="modal-return-mileage" required value="${m.startMileage + 15}" class="w-full p-2.5 border rounded-xl font-mono" /></div>
+                <div><label class="font-bold">備註</label><textarea id="modal-notes" rows="2" class="w-full p-2.5 border rounded-xl"></textarea></div>
+              </div>
+              <div class="flex justify-end gap-2 pt-2"><button type="button" onclick="closeModal()" class="px-4 py-2 text-xs">取消</button><button type="submit" class="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold">完成</button></div>
+            </form>
+          </div>
+        `;
+      }
+      return '';
     }
 
     function render() {
@@ -624,30 +259,33 @@
       if (!app) return;
 
       if (!windowState.currentUser) {
-        app.innerHTML = renderLoginView();
+        app.innerHTML = `
+          <div class="min-h-screen bg-slate-900 flex items-center justify-center p-4">
+            <div class="bg-white rounded-3xl max-w-sm w-full p-6 space-y-4 text-center">
+              <h2 class="font-black text-lg">全錸蒔營運系統</h2>
+              <button onclick="windowState.currentUser = {name:'王聖銓', role:'總店長'}; localStorage.setItem('shangyu_loginUser', JSON.stringify(windowState.currentUser)); render();" class="w-full bg-amber-400 font-bold py-3 rounded-xl">一鍵快速登入</button>
+            </div>
+          </div>
+        `;
         return;
       }
 
-      let moduleHTML = '';
-      switch (windowState.activeModule) {
-        case 'announcements': moduleHTML = renderAnnouncements(); break;
-        case 'tasks': moduleHTML = renderTasks(); break;
-        case 'schedule': moduleHTML = renderSchedule(); break;
-        case 'attendance': moduleHTML = renderAttendance(); break;
-        case 'lateReport': moduleHTML = renderLateReport(); break;
-        case 'carManagement': moduleHTML = renderCarManagement(); break;
-        case 'hrRoster': moduleHTML = renderHrRoster(); break;
-        case 'evaluation': moduleHTML = renderEvaluations(); break;
-        case 'annualEval': moduleHTML = renderAnnualEvaluation(); break;
-        default: moduleHTML = renderAnnouncements();
-      }
-
       app.innerHTML = `
-        <div class="min-h-screen bg-slate-100 flex justify-center py-0 sm:py-6 font-sans">
-          <div class="w-full max-w-5xl bg-white min-h-screen sm:min-h-[900px] sm:rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
-            ${renderHeader()}
-            <main class="flex-1 p-4 sm:p-5 space-y-5 bg-slate-50/70 overflow-y-auto">
-              ${moduleHTML}
+        <div class="min-h-screen bg-slate-100 flex justify-center py-0 sm:py-6">
+          <div class="w-full max-w-5xl bg-white min-h-screen sm:rounded-3xl shadow-2xl border flex flex-col">
+            <header class="bg-slate-900 text-white p-4 flex justify-between items-center">
+              <h1 class="font-bold">全錸蒔管理系統</h1>
+              <div class="flex gap-2">
+                <button onclick="userLogout()" class="bg-rose-600 px-3 py-1 rounded text-xs font-bold">登出</button>
+                <button onclick="openAdminModal()" class="bg-amber-400 text-slate-950 px-3 py-1 rounded text-xs font-bold">管理員</button>
+              </div>
+            </header>
+            <nav class="bg-slate-800 text-white p-2 flex gap-1 overflow-x-auto text-xs">
+              <button onclick="switchModule('announcements')" class="px-3 py-1.5 rounded font-bold ${windowState.activeModule==='announcements'?'bg-amber-400 text-slate-950':''}">1.布告欄</button>
+              <button onclick="switchModule('carManagement')" class="px-3 py-1.5 rounded font-bold ${windowState.activeModule==='carManagement'?'bg-amber-400 text-slate-950':''}">6.公務車登記</button>
+            </nav>
+            <main class="flex-1 p-5 bg-slate-50">
+              ${windowState.activeModule === 'carManagement' ? renderCarManagement() : `<div class="p-6 bg-white rounded-2xl border text-center"><h2 class="font-bold text-base">歡迎使用全錸蒔營運系統</h2><p class="text-xs text-slate-500 mt-2">請切換至「6.公務車登記」測試車輛管理功能。</p></div>`}
             </main>
           </div>
         </div>
@@ -655,17 +293,7 @@
       `;
     }
 
-    setInterval(() => {
-      const clockEl = document.getElementById('live-clock-display');
-      if (clockEl) clockEl.textContent = new Date().toLocaleTimeString('zh-TW', { hour12: false });
-    }, 1000);
-
-    try {
-      render();
-      initFirebaseSync();
-    } catch (e) {
-      console.error("Boot Error:", e);
-    }
+    render();
   </script>
 </body>
 </html>
