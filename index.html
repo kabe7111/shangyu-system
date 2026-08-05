@@ -45,7 +45,7 @@
 <body class="bg-slate-100 min-h-screen font-sans text-slate-800">
 
   <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
-  <div id="app"></div>
+  <div id="app" class="min-h-screen"></div>
   <div id="print-modal-area" class="hidden print:block"></div>
 
   <script type="module">
@@ -66,7 +66,7 @@
     let db = null;
     try {
       const app = initializeApp(firebaseConfig);
-      const analytics = getAnalytics(app);
+      getAnalytics(app);
       db = getFirestore(app);
     } catch (e) {
       console.warn("Firebase Init Warning: ", e);
@@ -161,13 +161,10 @@
       const checkDate = new Date(checkDateStr);
       const expireDate = new Date(checkDate);
       expireDate.setFullYear(expireDate.getFullYear() + 1);
-
       const today = new Date();
       today.setHours(0,0,0,0);
-
       const diffTime = expireDate - today;
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
       if (diffDays < 0) {
         return { status: `🔴 體檢已過期 (${Math.abs(diffDays)}天前)`, isExpired: true, daysLeft: diffDays };
       } else if (diffDays <= 30) {
@@ -192,88 +189,33 @@
     }
 
     function initFirebaseSync() {
-      if (!db) {
-        render();
-        return;
-      }
+      if (!db) return;
       try {
         const docRef = doc(db, 'system', 'mainData');
         getDoc(docRef).then((docSnap) => {
-          if (docSnap.exists()) {
-            applyCloudData(docSnap.data());
-          } else {
-            saveStateToCloud();
-          }
+          if (docSnap.exists()) applyCloudData(docSnap.data());
+          else saveStateToCloud();
         }).catch(() => {});
-
         onSnapshot(docRef, (docSnap) => {
-          if (docSnap.exists()) {
-            applyCloudData(docSnap.data());
-          }
+          if (docSnap.exists()) applyCloudData(docSnap.data());
         }, () => {});
-      } catch (e) {
-        render();
-      }
+      } catch (e) {}
     }
 
     function applyCloudData(data) {
       let hasChanges = false;
-      if (data.employees && JSON.stringify(data.employees) !== JSON.stringify(windowState.employees)) {
-        windowState.employees = data.employees;
-        hasChanges = true;
-      }
-      if (data.announcements && JSON.stringify(data.announcements) !== JSON.stringify(windowState.announcements)) {
-        windowState.announcements = data.announcements;
-        hasChanges = true;
-      }
-      if (data.tasks && JSON.stringify(data.tasks) !== JSON.stringify(windowState.tasks)) {
-        windowState.tasks = data.tasks;
-        hasChanges = true;
-      }
-      if (data.schedules && JSON.stringify(data.schedules) !== JSON.stringify(windowState.schedules)) {
-        windowState.schedules = data.schedules;
-        hasChanges = true;
-      }
-      if (data.clockRecords && JSON.stringify(data.clockRecords) !== JSON.stringify(windowState.clockRecords)) {
-        windowState.clockRecords = data.clockRecords;
-        hasChanges = true;
-      }
-      if (data.cars && JSON.stringify(data.cars) !== JSON.stringify(windowState.cars)) {
-        windowState.cars = data.cars;
-        hasChanges = true;
-      }
-      if (data.carRecords && JSON.stringify(data.carRecords) !== JSON.stringify(windowState.carRecords)) {
-        windowState.carRecords = data.carRecords;
-        hasChanges = true;
-      }
-      if (data.evaluations && JSON.stringify(data.evaluations) !== JSON.stringify(windowState.evaluations)) {
-        windowState.evaluations = data.evaluations;
-        hasChanges = true;
-      }
-      if (data.evalArchives && JSON.stringify(data.evalArchives) !== JSON.stringify(windowState.evalArchives)) {
-        windowState.evalArchives = data.evalArchives;
-        hasChanges = true;
-      }
-      if (data.logoUrl && data.logoUrl !== windowState.logoUrl) {
-        windowState.logoUrl = data.logoUrl;
-        hasChanges = true;
-      }
-      if (data.slogan && data.slogan !== windowState.slogan) {
-        windowState.slogan = data.slogan;
-        hasChanges = true;
-      }
-
-      if (windowState.currentUser) {
-        const freshEmp = windowState.employees.find(e => e.name === windowState.currentUser.name);
-        if (freshEmp) {
-          windowState.currentUser = freshEmp;
-          localStorage.setItem('shangyu_loginUser', JSON.stringify(freshEmp));
-        }
-      }
-
-      if (hasChanges) {
-        render();
-      }
+      if (data.employees && JSON.stringify(data.employees) !== JSON.stringify(windowState.employees)) { windowState.employees = data.employees; hasChanges = true; }
+      if (data.announcements && JSON.stringify(data.announcements) !== JSON.stringify(windowState.announcements)) { windowState.announcements = data.announcements; hasChanges = true; }
+      if (data.tasks && JSON.stringify(data.tasks) !== JSON.stringify(windowState.tasks)) { windowState.tasks = data.tasks; hasChanges = true; }
+      if (data.schedules && JSON.stringify(data.schedules) !== JSON.stringify(windowState.schedules)) { windowState.schedules = data.schedules; hasChanges = true; }
+      if (data.clockRecords && JSON.stringify(data.clockRecords) !== JSON.stringify(windowState.clockRecords)) { windowState.clockRecords = data.clockRecords; hasChanges = true; }
+      if (data.cars && JSON.stringify(data.cars) !== JSON.stringify(windowState.cars)) { windowState.cars = data.cars; hasChanges = true; }
+      if (data.carRecords && JSON.stringify(data.carRecords) !== JSON.stringify(windowState.carRecords)) { windowState.carRecords = data.carRecords; hasChanges = true; }
+      if (data.evaluations && JSON.stringify(data.evaluations) !== JSON.stringify(windowState.evaluations)) { windowState.evaluations = data.evaluations; hasChanges = true; }
+      if (data.evalArchives && JSON.stringify(data.evalArchives) !== JSON.stringify(windowState.evalArchives)) { windowState.evalArchives = data.evalArchives; hasChanges = true; }
+      if (data.logoUrl && data.logoUrl !== windowState.logoUrl) { windowState.logoUrl = data.logoUrl; hasChanges = true; }
+      if (data.slogan && data.slogan !== windowState.slogan) { windowState.slogan = data.slogan; hasChanges = true; }
+      if (hasChanges) render();
     }
 
     async function saveStateToCloud() {
@@ -281,197 +223,32 @@
       try {
         const docRef = doc(db, 'system', 'mainData');
         await setDoc(docRef, {
-          employees: windowState.employees,
-          announcements: windowState.announcements,
-          tasks: windowState.tasks,
-          schedules: windowState.schedules,
-          clockRecords: windowState.clockRecords,
-          cars: windowState.cars,
-          carRecords: windowState.carRecords,
-          evaluations: windowState.evaluations,
-          evalArchives: windowState.evalArchives,
-          logoUrl: windowState.logoUrl,
-          slogan: windowState.slogan,
-          updatedAt: serverTimestamp()
+          employees: windowState.employees, announcements: windowState.announcements,
+          tasks: windowState.tasks, schedules: windowState.schedules,
+          clockRecords: windowState.clockRecords, cars: windowState.cars,
+          carRecords: windowState.carRecords, evaluations: windowState.evaluations,
+          evalArchives: windowState.evalArchives, logoUrl: windowState.logoUrl,
+          slogan: windowState.slogan, updatedAt: serverTimestamp()
         });
-        showToast("☁️ 資料已成功同步至雲端資料庫！");
-      } catch (err) {
-        console.error("Cloud Save Error: ", err);
-      }
+      } catch (err) {}
     }
 
-    window.addEventListener('beforeunload', () => {
-      if (db) {
-        saveStateToCloud();
-      }
-    });
+    window.addEventListener('beforeunload', () => { if (db) saveStateToCloud(); });
 
     function getUniqueClockRecords() {
       const map = new Map();
       const sorted = [...windowState.clockRecords].sort((a, b) => a.id - b.id);
-      sorted.forEach(rec => {
-        const key = `${rec.name}_${rec.date}`;
-        map.set(key, rec);
-      });
+      sorted.forEach(rec => map.set(`${rec.name}_${rec.date}`, rec));
       return Array.from(map.values());
     }
-
-    window.updateSystemSlogan = () => {
-      const newSlogan = prompt("請輸入新的公司標語：", windowState.slogan);
-      if (newSlogan !== null && newSlogan.trim() !== "") {
-        windowState.slogan = newSlogan.trim();
-        saveStateToCloud();
-        showToast("🎉 公司標語已更新並即時同步至雲端！");
-        render();
-      }
-    };
-
-    window.exportSystemBackup = () => {
-      const backupData = {
-        version: "1.0",
-        exportDate: new Date().toISOString(),
-        employees: windowState.employees,
-        announcements: windowState.announcements,
-        tasks: windowState.tasks,
-        schedules: windowState.schedules,
-        clockRecords: windowState.clockRecords,
-        cars: windowState.cars,
-        carRecords: windowState.carRecords,
-        evaluations: windowState.evaluations,
-        evalArchives: windowState.evalArchives,
-        slogan: windowState.slogan
-      };
-      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
-      const downloadAnchor = document.createElement('a');
-      downloadAnchor.setAttribute("href", dataStr);
-      downloadAnchor.setAttribute("download", `QuanLaiShi_Backup_${todayStr}.json`);
-      document.body.appendChild(downloadAnchor);
-      downloadAnchor.click();
-      downloadAnchor.remove();
-      showToast('💾 系統資料備份檔案已成功匯出！');
-    };
-
-    window.importSystemBackup = (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = async (uploadEvent) => {
-        try {
-          const parsed = JSON.parse(uploadEvent.target.result);
-          if (parsed.employees) windowState.employees = parsed.employees;
-          if (parsed.announcements) windowState.announcements = parsed.announcements;
-          if (parsed.tasks) windowState.tasks = parsed.tasks;
-          if (parsed.schedules) windowState.schedules = parsed.schedules;
-          if (parsed.clockRecords) windowState.clockRecords = parsed.clockRecords;
-          if (parsed.cars) windowState.cars = parsed.cars;
-          if (parsed.carRecords) windowState.carRecords = parsed.carRecords;
-          if (parsed.evaluations) windowState.evaluations = parsed.evaluations;
-          if (parsed.evalArchives) windowState.evalArchives = parsed.evalArchives;
-          if (parsed.slogan) windowState.slogan = parsed.slogan;
-          
-          await saveStateToCloud();
-          showToast('🎉 資料還原成功！系統已更新至最新狀態。');
-          render();
-        } catch (err) {
-          showToast('❌ 備份檔案格式錯誤或損毀', 'error');
-        }
-      };
-      reader.readAsText(file);
-    };
-
-    window.copyTaskLineText = (taskId) => {
-      const task = windowState.tasks.find(t => t.id === taskId);
-      if (!task) return;
-      let chkText = '';
-      if (task.checklist && task.checklist.length > 0) {
-        chkText = '\n\n📦 **備料/出勤檢查清單**：\n' + task.checklist.map(c => `${c.checked ? '[✓]' : '[☐]'} ${c.item}`).join('\n');
-      }
-      let fileText = task.fileUrl ? `\n\n📎 附加檔案：${task.fileName || '查看附件'}` : '';
-      const lineText = `📌 【全錸蒔國際餐飲 - 工作交辦通知】\n\n🔹 任務主題：${task.title}\n🔹 工作分類：${task.category}\n📅 預定日期：${task.date}\n🕒 時間：${task.startTime} ~ ${task.endTime}\n📍 地點：${task.location}\n👥 負責同仁：${task.assignees.join('、')}\n\n📝 工作說明：\n${task.content || '無'}${chkText}${fileText}\n\n收到請回覆「收到 +1」，謝謝配合！`;
-      navigator.clipboard.writeText(lineText).then(() => {
-        showToast(`💬 已成功複製【${task.title}】交辦訊息！`);
-      });
-    };
-
-    window.copyHealthCheckReminderLineText = (empName, expireDateStr) => {
-      const text = `【全錸蒔國際餐飲 - 人事健康檢查溫馨提醒】\n\n${empName} 同仁您好：\n提醒您，依食品安全衛生管理法與公司規範，您的餐飲從業人員健康檢查效期至【${expireDateStr}】將屆滿/已過期。\n為保障您的排班權益與顧客用餐安全，請於近期前往合格醫療院所完成體檢，並將合格報告交予 HR / 店長備查，謝謝您的配合！`;
-      navigator.clipboard.writeText(text).then(() => {
-        showToast(`📋 已複製【${empName}】體檢催辦訊息！`);
-      });
-    };
 
     window.switchModule = (moduleId) => { windowState.activeModule = moduleId; render(); };
     window.openAdminModal = () => { windowState.activeModal = 'admin'; render(); };
     window.openAnnModal = () => { windowState.activeModal = 'annModal'; render(); };
     window.closeModal = () => { windowState.activeModal = null; render(); };
-
     window.toggleClockMode = (mode) => { windowState.clockMode = mode; render(); };
-    window.toggleAdminLock = () => {
-      windowState.isAdmin = !windowState.isAdmin;
-      showToast(windowState.isAdmin ? '🎉 管理員權限已解鎖' : '🔒 管理員權限已上鎖');
-      render();
-    };
-
-    window.toggleShowTerminatedEmps = () => {
-      windowState.showTerminatedEmps = !windowState.showTerminatedEmps;
-      render();
-    };
-
-    window.handleLogoUpload = (e) => {
-      const file = e.target.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (uploadEvent) => {
-          windowState.logoUrl = uploadEvent.target.result;
-          localStorage.setItem('shangyu_logo', windowState.logoUrl);
-          saveStateToCloud();
-          showToast('🎉 公司品牌 Logo 已更換！');
-          render();
-        };
-        reader.readAsDataURL(file);
-      }
-    };
-
-    window.handleAnnImageUploadInModal = (e) => {
-      const file = e.target.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (uploadEvent) => {
-          windowState.modalData.imageUrl = uploadEvent.target.result;
-        };
-        reader.readAsDataURL(file);
-      }
-    };
-
-    window.handleTaskFileUploadInModal = (e) => {
-      const file = e.target.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (uploadEvent) => {
-          windowState.modalData.fileUrl = uploadEvent.target.result;
-          windowState.modalData.fileName = file.name;
-          showToast(`📎 檔案【${file.name}】已成功載入！`);
-        };
-        reader.readAsDataURL(file);
-      }
-    };
-
-    window.handleUserLoginSubmit = (e) => {
-      e.preventDefault();
-      const staffName = document.getElementById('login-staff-sel').value;
-      const pinInput = document.getElementById('login-pin').value.trim();
-      
-      const emp = windowState.employees.find(e => e.name === staffName);
-      if (emp && (pinInput === emp.pin || pinInput === '8888')) {
-        windowState.currentUser = emp;
-        windowState.selectedCardStaff = emp.name;
-        localStorage.setItem('shangyu_loginUser', JSON.stringify(emp));
-        showToast(`🎉 歡迎登入！【${emp.name}】(${emp.role})`);
-        render();
-      } else {
-        showToast('❌ 個人 PIN 密碼不正確！', 'error');
-      }
-    };
+    window.toggleAdminLock = () => { windowState.isAdmin = !windowState.isAdmin; showToast(windowState.isAdmin ? '🎉 管理員權限已解鎖' : '🔒 管理員權限已上鎖'); render(); };
+    window.toggleShowTerminatedEmps = () => { windowState.showTerminatedEmps = !windowState.showTerminatedEmps; render(); };
 
     window.userLogout = () => {
       windowState.currentUser = null;
@@ -480,497 +257,50 @@
       render();
     };
 
-    window.executeClockAction = (type) => {
-      if (windowState.clockMode === 'businessTrip' && !windowState.tripReason.trim()) {
-        return showToast('⚠️ 請務必填寫外勤地點與事由！', 'warning');
-      }
-      const timeStr = new Date().toLocaleTimeString('zh-TW', { hour12: false }).slice(0, 5);
-      const isLate = type === 'in' && timeStr > '09:00';
-
-      let hoursWorked = 0.0;
-      let otHours = 0.0;
-      const existingIn = windowState.clockRecords.find(c => c.name === windowState.currentUser.name && c.date === todayStr && c.clockIn !== '--:--');
-
-      if (type === 'out' && existingIn) {
-        const [inH, inM] = existingIn.clockIn.split(':').map(Number);
-        const [outH, outM] = timeStr.split(':').map(Number);
-        const diffMin = Math.max(0, (outH * 60 + outM) - (inH * 60 + inM));
-        const rawHours = diffMin / 60;
-        hoursWorked = Math.round(rawHours * 2) / 2;
-        if (hoursWorked > 9.0) otHours = hoursWorked - 9.0;
-      }
-
-      windowState.clockRecords.unshift({
-        id: Date.now(), name: windowState.currentUser.name, date: todayStr,
-        expected: '09:00', clockIn: type === 'in' ? timeStr : (existingIn?.clockIn || '--:--'),
-        clockOut: type === 'out' ? timeStr : '--:--',
-        hoursWorked, otHours,
-        status: isLate ? '⚠️ 遲到' : '🟢 正常',
-        location: windowState.clockMode === 'store' ? '公司打卡' : `🚗 外勤: ${windowState.tripReason}`
-      });
-      saveStateToCloud();
-      showToast(`🎉 【${windowState.currentUser.name}】打卡成功！(工時：${hoursWorked}h)`);
-    };
-
-    window.openEditClockModal = (recordId) => {
-      if (!windowState.isAdmin) return showToast('🔒 請先解鎖管理員權限才能修改打卡！', 'warning');
-      const rec = windowState.clockRecords.find(c => c.id === recordId);
-      if (!rec) return;
-      windowState.modalData = { ...rec };
-      windowState.activeModal = 'clockModal';
-      render();
-    };
-
-    window.handleSaveClockSubmit = (e) => {
+    window.handleUserLoginSubmit = (e) => {
       e.preventDefault();
-      const m = windowState.modalData;
-      const inTime = document.getElementById('edit-clock-in').value;
-      const outTime = document.getElementById('edit-clock-out').value;
-      const loc = document.getElementById('edit-clock-loc').value;
-
-      let hoursWorked = Number(m.hoursWorked) || 0.0;
-      let otHours = Number(m.otHours) || 0.0;
-
-      if (inTime && outTime && inTime !== '--:--' && outTime !== '--:--') {
-        const [inH, inM] = inTime.split(':').map(Number);
-        const [outH, outM] = outTime.split(':').map(Number);
-        const diffMin = Math.max(0, (outH * 60 + outM) - (inH * 60 + inM));
-        hoursWorked = Math.round((diffMin / 60) * 2) / 2;
-        if (hoursWorked > 9.0) otHours = hoursWorked - 9.0;
+      const staffName = document.getElementById('login-staff-sel').value;
+      const pinInput = document.getElementById('login-pin').value.trim();
+      const emp = windowState.employees.find(e => e.name === staffName);
+      if (emp && (pinInput === emp.pin || pinInput === '8888')) {
+        windowState.currentUser = emp;
+        windowState.selectedCardStaff = emp.name;
+        localStorage.setItem('shangyu_loginUser', JSON.stringify(emp));
+        showToast(`🎉 歡迎登入！【${emp.name}】`);
+        render();
+      } else {
+        showToast('❌ PIN 密碼不正確！', 'error');
       }
-
-      windowState.clockRecords = windowState.clockRecords.map(c => c.id === m.id ? {
-        ...c, clockIn: inTime, clockOut: outTime, location: loc, hoursWorked, otHours,
-        status: (inTime > '09:00' ? '⚠️ 遲到' : '🟢 正常')
-      } : c);
-
-      saveStateToCloud();
-      windowState.activeModal = null;
-      showToast('✅ 打卡記錄已成功修改並同步至雲端！');
     };
 
     window.handleAdminLoginSubmit = (e) => {
       e.preventDefault();
       const pin = document.getElementById('admin-pin-input').value;
-      if (pin === '8888') {
-        windowState.isAdmin = true;
-        windowState.activeModal = null;
-        showToast('🎉 管理員權限解鎖成功！');
-      } else {
-        showToast('❌ 管理員 PIN 碼錯誤', 'error');
-      }
+      if (pin === '8888') { windowState.isAdmin = true; windowState.activeModal = null; showToast('🎉 管理員解鎖成功！'); }
+      else { showToast('❌ PIN 碼錯誤', 'error'); }
       render();
     };
 
-    window.selectCalendarDate = (dateStr) => {
-      windowState.selectedTaskDate = dateStr;
-      render();
-    };
-
-    window.openCreateTaskModal = (dateStr) => {
-      const targetDate = dateStr || windowState.selectedTaskDate || todayStr;
-      windowState.modalData = { date: targetDate, title: '', category: '調理包製作', repeat: '單次', assignees: [windowState.employees.filter(e => e.status !== '離職')[0]?.name || '王聖銓'], startTime: '09:00', endTime: '12:00', location: '中央廚房', content: '', checklist: [], fileUrl: '', fileName: '' };
-      windowState.activeModal = 'taskModal';
-      render();
-    };
-
-    window.openEditTaskModal = (taskId) => {
-      const task = windowState.tasks.find(t => t.id === taskId);
-      if (task) {
-        windowState.modalData = { ...task, checklist: task.checklist ? [...task.checklist] : [] };
-        windowState.activeModal = 'taskModal';
-        render();
-      }
-    };
-
-    window.syncModalDataFromInputs = () => {
-      const titleEl = document.getElementById('task-title');
-      const catEl = document.getElementById('task-category');
-      const repEl = document.getElementById('task-repeat');
-      const dateEl = document.getElementById('task-date');
-      const startEl = document.getElementById('task-start');
-      const endEl = document.getElementById('task-end');
-      const locEl = document.getElementById('task-location');
-      const contentEl = document.getElementById('task-content');
-
-      if (titleEl) windowState.modalData.title = titleEl.value;
-      if (catEl) windowState.modalData.category = catEl.value;
-      if (repEl) windowState.modalData.repeat = repEl.value;
-      if (dateEl) windowState.modalData.date = dateEl.value;
-      if (startEl) windowState.modalData.startTime = startEl.value;
-      if (endEl) windowState.modalData.endTime = endEl.value;
-      if (locEl) windowState.modalData.location = locEl.value;
-      if (contentEl) windowState.modalData.content = contentEl.value;
-    };
-
-    window.addModalChecklistItem = () => {
-      window.syncModalDataFromInputs();
-      const input = document.getElementById('new-chk-item-input');
-      const val = input ? input.value.trim() : '';
-      if (val) {
-        if (!windowState.modalData.checklist) windowState.modalData.checklist = [];
-        windowState.modalData.checklist.push({ item: val, checked: false });
-        render();
-      }
-    };
-
-    window.removeModalChecklistItem = (idx) => {
-      window.syncModalDataFromInputs();
-      if (windowState.modalData.checklist) {
-        windowState.modalData.checklist.splice(idx, 1);
-        render();
-      }
-    };
-
-    window.deleteTask = (taskId) => {
-      windowState.tasks = windowState.tasks.filter(t => t.id !== taskId);
-      saveStateToCloud();
-      showToast('🗑️ 行程已刪除！');
-      render();
-    };
-
-    window.deleteAnnouncement = (annId) => {
-      if (!windowState.isAdmin) return showToast('🔒 請先解鎖管理員權限才能刪除公告！', 'warning');
-      if (confirm('確定要刪除這則公告嗎？')) {
-        windowState.announcements = windowState.announcements.filter(a => a.id !== annId);
-        saveStateToCloud();
-        showToast('🗑️ 公告已成功刪除！');
-        render();
-      }
-    };
-
-    window.toggleAssigneeInModal = (name) => {
-      window.syncModalDataFromInputs();
-      const list = windowState.modalData.assignees || [];
-      if (list.includes(name)) {
-        if (list.length > 1) windowState.modalData.assignees = list.filter(a => a !== name);
-      } else {
-        windowState.modalData.assignees = [...list, name];
-      }
-      render();
-    };
-
-    window.handleSaveTaskSubmit = (e) => {
-      e.preventDefault();
-      const payload = {
-        title: document.getElementById('task-title').value,
-        category: document.getElementById('task-category').value,
-        repeat: document.getElementById('task-repeat').value,
-        content: document.getElementById('task-content').value,
-        date: document.getElementById('task-date').value,
-        startTime: document.getElementById('task-start').value,
-        endTime: document.getElementById('task-end').value,
-        location: document.getElementById('task-location').value,
-        assignees: windowState.modalData.assignees || [windowState.employees[0].name],
-        checklist: windowState.modalData.checklist || [],
-        fileUrl: windowState.modalData.fileUrl || '',
-        fileName: windowState.modalData.fileName || ''
-      };
-
-      if (windowState.modalData.id) {
-        windowState.tasks = windowState.tasks.map(t => t.id === windowState.modalData.id ? { ...t, ...payload } : t);
-      } else {
-        windowState.tasks.unshift({ id: Date.now(), status: '待處理', ...payload });
-      }
-      saveStateToCloud();
-      windowState.activeModal = null;
-      showToast('✅ 工作行程已儲存！');
-      render();
-    };
-
-    window.openCreateEmpModal = () => {
-      windowState.modalData = { id: `E0${windowState.employees.length + 1}`, name: '', role: '門市服務員', type: '正職員工', status: '在職', healthCheckDate: todayStr, pin: '8888', phone: '', address: '', leaveEntitled: 7, leaveUsed: 0, note: '' };
-      windowState.activeModal = 'empModal';
-      render();
-    };
-
-    window.openEditEmpModal = (empId) => {
-      const emp = windowState.employees.find(e => e.id === empId);
-      if (emp) {
-        windowState.modalData = { ...emp };
-        windowState.activeModal = 'empModal';
-        render();
-      }
-    };
-
-    window.handleSaveEmpSubmit = (e) => {
-      e.preventDefault();
-      const payload = {
-        id: document.getElementById('emp-id').value,
-        name: document.getElementById('emp-name').value,
-        role: document.getElementById('emp-role').value,
-        type: document.getElementById('emp-type').value,
-        status: document.getElementById('emp-status').value,
-        healthCheckDate: document.getElementById('emp-health-date').value,
-        birthday: document.getElementById('emp-birthday').value,
-        joinDate: document.getElementById('emp-joindate').value,
-        phone: document.getElementById('emp-phone').value,
-        pin: document.getElementById('emp-pin').value,
-        leaveEntitled: Number(document.getElementById('emp-leave-entitled').value) || 0,
-        leaveUsed: Number(document.getElementById('emp-leave-used').value) || 0,
-        emergencyContact: document.getElementById('emp-emg').value,
-        emergencyPhone: document.getElementById('emp-emgphone').value,
-        address: document.getElementById('emp-address').value,
-        note: document.getElementById('emp-note').value,
-        dept: '門市/外場'
-      };
-
-      const idx = windowState.employees.findIndex(e => e.id === payload.id);
-      if (idx >= 0) {
-        windowState.employees[idx] = { ...windowState.employees[idx], ...payload };
-      } else {
-        windowState.employees.push(payload);
-      }
-      saveStateToCloud();
-      windowState.activeModal = null;
-      showToast('✅ 員工資料與名冊已成功同步至雲端存檔！');
-      render();
-    };
-
-    window.openEditEvalModal = (empName) => {
-      const customEval = windowState.evaluations[empName] || { efficiencyScore: 3, tripCoopScore: 3, sanitationScore: 3, knowledgeScore: 3, comment: '' };
-      windowState.modalData = { name: empName, ...customEval };
-      windowState.activeModal = 'evalModal';
-      render();
-    };
-
-    window.handleSaveEvalSubmit = (e) => {
-      e.preventDefault();
-      windowState.evaluations[windowState.modalData.name] = {
-        efficiencyScore: Number(document.getElementById('eval-eff').value),
-        tripCoopScore: Number(document.getElementById('eval-trip').value),
-        sanitationScore: Number(document.getElementById('eval-san').value),
-        knowledgeScore: Number(document.getElementById('eval-knw').value),
-        comment: document.getElementById('eval-comment').value
-      };
-      saveStateToCloud();
-      windowState.activeModal = null;
-      showToast('✅ 已更新考核評分與評語！');
-    };
-
-    window.archiveCurrentEvaluation = () => {
-      if (!windowState.isAdmin) return showToast('🔒 請先解鎖管理員權限才能執行存檔！', 'warning');
-      const archiveKey = `${windowState.scheduleYear}-${windowState.scheduleMonth}`;
-      
-      const uniqueRecords = getUniqueClockRecords();
-      const currentMonthEvals = {};
-
-      windowState.employees.forEach(emp => {
-        const empTasks = windowState.tasks.filter(t => t.assignees.includes(emp.name));
-        const completedTaskCount = empTasks.filter(t => t.status === '已完成').length;
-        const uncompletedTaskCount = empTasks.filter(t => t.status !== '已完成' && t.date <= todayStr).length;
-        const empClocks = uniqueRecords.filter(c => c.name === emp.name);
-        const lateCount = empClocks.filter(c => c.status.includes('遲到')).length;
-
-        const customEval = windowState.evaluations[emp.name] || {
-          efficiencyScore: 3, tripCoopScore: 3, sanitationScore: 3, knowledgeScore: 3,
-          comment: '工作表現正常。'
-        };
-
-        const calculatedScore = Math.min(100, Math.max(0,
-          70 + (customEval.efficiencyScore * 2) + (customEval.tripCoopScore * 2) + (customEval.sanitationScore * 2) + (customEval.knowledgeScore * 2) + (completedTaskCount * 2) - (lateCount * 5) - (uncompletedTaskCount * 3)
-        ));
-
-        currentMonthEvals[emp.name] = {
-          role: emp.role,
-          ...customEval,
-          completedTaskCount,
-          uncompletedTaskCount,
-          lateCount,
-          totalScore: calculatedScore
-        };
-      });
-
-      if (!windowState.evalArchives) windowState.evalArchives = {};
-      windowState.evalArchives[archiveKey] = currentMonthEvals;
-      saveStateToCloud();
-      showToast(`🎉 成功將【${windowState.scheduleYear} 年 ${windowState.scheduleMonth} 月】考核紀錄封存入庫！`);
-      render();
-    };
-
-    window.handleSaveAnnSubmit = (e) => {
-      e.preventDefault();
-      const title = document.getElementById('ann-title-input').value;
-      const level = document.getElementById('ann-level-sel').value;
-      const content = document.getElementById('ann-content-input').value;
-      const author = document.getElementById('ann-author-input').value.trim() || '總部';
-
-      windowState.announcements.unshift({
-        id: Date.now(), title, level, category: '重要', isPinned: false,
-        date: todayStr, author, content, imageUrl: windowState.modalData.imageUrl || ''
+    window.executeClockAction = (type) => {
+      if (windowState.clockMode === 'businessTrip' && !windowState.tripReason.trim()) return showToast('⚠️ 請填寫外勤事由！', 'warning');
+      const timeStr = new Date().toLocaleTimeString('zh-TW', { hour12: false }).slice(0, 5);
+      const isLate = type === 'in' && timeStr > '09:00';
+      windowState.clockRecords.unshift({
+        id: Date.now(), name: windowState.currentUser.name, date: todayStr,
+        expected: '09:00', clockIn: type === 'in' ? timeStr : '--:--',
+        clockOut: type === 'out' ? timeStr : '--:--',
+        hoursWorked: 9.0, otHours: 0, status: isLate ? '⚠️ 遲到' : '🟢 正常',
+        location: windowState.clockMode === 'store' ? '公司打卡' : `🚗 外勤: ${windowState.tripReason}`
       });
       saveStateToCloud();
-      windowState.activeModal = null;
-      showToast('✅ 成功發布新公告！');
-    };
-
-    window.handleShiftSelectChange = (empName, dayIdx, selectElement) => {
-      if (!windowState.isAdmin) {
-        alert('🔒 請先解鎖管理員權限才能修改班表！');
-        selectElement.value = selectElement.defaultValue;
-        return;
-      }
-      
-      const emp = windowState.employees.find(e => e.name === empName);
-      const hcInfo = getHealthCheckInfo(emp?.healthCheckDate);
-      if (emp && hcInfo.isExpired) {
-        alert(`🚨 警告：【${empName}】體檢已過期！依規禁止排班上班。`);
-        selectElement.value = selectElement.defaultValue;
-        return;
-      }
-
-      const nextShift = selectElement.value;
-      const key = `${windowState.scheduleYear}-${windowState.scheduleMonth}-${empName}`;
-      const { days } = getMonthDaysData(windowState.scheduleYear, windowState.scheduleMonth);
-      const existingShifts = windowState.schedules[key] || days.map(m => (m.holidayName || m.isWeekend ? '休假' : '上班'));
-
-      const updated = [...existingShifts];
-      updated[dayIdx] = nextShift;
-      windowState.schedules[key] = updated;
-      saveStateToCloud();
-      showToast(`⚡ 已更新【${empName}】${windowState.scheduleMonth}/${days[dayIdx].day} 班別為：${nextShift}`);
-    };
-
-    window.handleAttendanceStaffChange = (selectEl) => {
-      windowState.selectedCardStaff = selectEl.value;
+      showToast(`🎉 打卡成功！`);
       render();
     };
 
-    window.initiateCompleteTask = (id) => {
-      const task = windowState.tasks.find(t => t.id === id);
-      if (task) {
-        if (task.status === '已完成') {
-          task.status = '待處理';
-          task.completedBy = '';
-          saveStateToCloud();
-          showToast('已切換為待處理');
-        } else {
-          task.status = '已完成';
-          task.completedBy = windowState.currentUser.name;
-
-          if (task.repeat && task.repeat !== '單次') {
-            const currDate = new Date(task.date);
-            if (task.repeat === '每日') {
-              currDate.setDate(currDate.getDate() + 1);
-            } else if (task.repeat === '每週') {
-              currDate.setDate(currDate.getDate() + 7);
-            } else if (task.repeat === '每月') {
-              currDate.setMonth(currDate.getMonth() + 1);
-            } else if (task.repeat === '每兩個月') {
-              currDate.setMonth(currDate.getMonth() + 2);
-            } else if (task.repeat === '每三個月') {
-              currDate.setMonth(currDate.getMonth() + 3);
-            } else if (task.repeat === '每半年') {
-              currDate.setMonth(currDate.getMonth() + 6);
-            } else if (task.repeat === '每年') {
-              currDate.setFullYear(currDate.getFullYear() + 1);
-            }
-
-            const nextDateStr = currDate.toISOString().slice(0, 10);
-            const duplicatedChecklist = (task.checklist || []).map(c => ({ ...c, checked: false }));
-
-            const exists = windowState.tasks.some(t => t.title === task.title && t.date === nextDateStr);
-            if (!exists) {
-              windowState.tasks.unshift({
-                id: Date.now(),
-                title: task.title,
-                category: task.category,
-                repeat: task.repeat,
-                content: task.content,
-                date: nextDateStr,
-                startTime: task.startTime,
-                endTime: task.endTime,
-                location: task.location,
-                assignees: [...task.assignees],
-                checklist: duplicatedChecklist,
-                status: '待處理',
-                completedBy: '',
-                fileUrl: task.fileUrl || '',
-                fileName: task.fileName || ''
-              });
-              showToast(`🔁 任務已完成，並自動幫您生成下一週期 (${nextDateStr}) 的新任務！`);
-            }
-          } else {
-            showToast(`✅ 【${windowState.currentUser.name}】已完成任務！考核自動加分！`);
-          }
-
-          saveStateToCloud();
-        }
-        render();
-      }
-    };
-
-    window.toggleChecklistItem = (taskId, chkIdx) => {
-      const task = windowState.tasks.find(t => t.id === taskId);
-      if (task && task.checklist && task.checklist[chkIdx]) {
-        task.checklist[chkIdx].checked = !task.checklist[chkIdx].checked;
-        saveStateToCloud();
-        render();
-      }
-    };
-
-    window.shiftMonth = (offset) => {
-      let m = windowState.scheduleMonth + offset;
-      let y = windowState.scheduleYear;
-      if (m > 12) { m = 1; y += 1; }
-      if (m < 1) { m = 12; y -= 1; }
-      windowState.scheduleMonth = m;
-      windowState.scheduleYear = y;
-      render();
-    };
-
-    window.jumpToCurrentMonth = () => {
-      const d = new Date();
-      windowState.scheduleYear = d.getFullYear();
-      windowState.scheduleMonth = d.getMonth() + 1;
-      windowState.selectedTaskDate = `${windowState.scheduleYear}-${String(windowState.scheduleMonth).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-      showToast("📍 已回到今天與當月");
-      render();
-    };
-
-    window.autoFillDefaultSchedule = () => {
-      if (!windowState.isAdmin) return alert('🔒 請先解鎖管理員權限！');
-      const { days } = getMonthDaysData(windowState.scheduleYear, windowState.scheduleMonth);
-
-      windowState.employees.forEach(emp => {
-        const hcInfo = getHealthCheckInfo(emp.healthCheckDate);
-        if (emp.status !== '離職' && !hcInfo.isExpired) {
-          const key = `${windowState.scheduleYear}-${windowState.scheduleMonth}-${emp.name}`;
-          windowState.schedules[key] = days.map(m => (m.isWeekend || m.isHoliday ? '休假' : '上班'));
-        }
-      });
-      saveStateToCloud();
-      showToast('⚡ 全店已同步帶入標準班表（國定假日與週末自動顯示休假）！');
-      render();
-    };
-
-    // 公務車系統相關互動函數
-    window.openAddCarModal = () => {
-      windowState.modalData = { isEdit: false, id: 'car_' + Date.now(), plate: '', model: '', currentMileage: 0, serviceInterval: 5000, photoUrl: '' };
-      windowState.activeModal = 'carEditModal';
-      render();
-    };
-
-    window.openEditCarModal = (carId) => {
-      const car = windowState.cars.find(c => c.id === carId);
-      if (!car) return;
-      windowState.modalData = { isEdit: true, ...car };
-      windowState.activeModal = 'carEditModal';
-      render();
-    };
-
-    window.handleCarPhotoUploadInModal = (e) => {
-      const file = e.target.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (uploadEvent) => {
-          windowState.modalData.photoUrl = uploadEvent.target.result;
-          showToast('📸 車輛照片已成功載入！');
-        };
-        reader.readAsDataURL(file);
-      }
-    };
-
+    // 公務車互動函數
+    window.openAddCarModal = () => { windowState.modalData = { isEdit: false, id: 'car_' + Date.now(), plate: '', model: '', currentMileage: 0, serviceInterval: 5000, photoUrl: '' }; windowState.activeModal = 'carEditModal'; render(); };
+    window.openEditCarModal = (id) => { const car = windowState.cars.find(c => c.id === id); if (car) { windowState.modalData = { isEdit: true, ...car }; windowState.activeModal = 'carEditModal'; render(); } };
+    window.handleCarPhotoUploadInModal = (e) => { const f = e.target.files[0]; if (f) { const r = new FileReader(); r.onload = (ev) => { windowState.modalData.photoUrl = ev.target.result; }; r.readAsDataURL(f); } };
     window.handleSaveCarSubmit = (e) => {
       e.preventDefault();
       const m = windowState.modalData;
@@ -978,349 +308,315 @@
       const model = document.getElementById('car-modal-model').value.trim();
       const currentMileage = Number(document.getElementById('car-modal-mileage').value);
       const serviceInterval = Number(document.getElementById('car-modal-interval').value) || 5000;
-
       if (m.isEdit) {
-        windowState.cars = windowState.cars.map(c => c.id === m.id ? {
-          ...c, plate, model, currentMileage, serviceInterval, photoUrl: m.photoUrl || c.photoUrl
-        } : c);
-        showToast('✅ 車輛資料已更新！');
+        windowState.cars = windowState.cars.map(c => c.id === m.id ? { ...c, plate, model, currentMileage, serviceInterval, photoUrl: m.photoUrl || c.photoUrl } : c);
       } else {
-        windowState.cars.push({
-          id: m.id, plate, model, currentMileage, lastServiceMileage: currentMileage, serviceInterval,
-          photoUrl: m.photoUrl || '', status: 'available', currentDriver: ''
-        });
-        showToast('🎉 新公務車已加入車庫！');
+        windowState.cars.push({ id: m.id, plate, model, currentMileage, lastServiceMileage: currentMileage, serviceInterval, photoUrl: m.photoUrl || '', status: 'available', currentDriver: '' });
       }
-
       localStorage.setItem('car_list', JSON.stringify(windowState.cars));
-      saveStateToCloud();
-      windowState.activeModal = null;
-      render();
+      saveStateToCloud(); windowState.activeModal = null; showToast('✅ 車輛資料已儲存！'); render();
     };
-
-    window.deleteCar = (carId) => {
-      if (windowState.cars.length <= 1) {
-        return alert('❌ 車庫中至少需保留一台公務車！');
-      }
-      if (confirm('確定要從車庫刪除這台公務車嗎？')) {
-        windowState.cars = windowState.cars.filter(c => c.id !== carId);
-        localStorage.setItem('car_list', JSON.stringify(windowState.cars));
-        saveStateToCloud();
-        showToast('🗑️ 車輛已刪除');
-        render();
-      }
-    };
-
-    window.openCarBorrowModal = (carId) => {
-      const car = windowState.cars.find(c => c.id === carId);
-      if (!car) return;
-      windowState.modalData = { carId, destination: '', startMileage: car.currentMileage };
-      windowState.activeModal = 'carBorrowModal';
-      render();
-    };
-
+    window.deleteCar = (id) => { if (confirm('確定刪除此車？')) { windowState.cars = windowState.cars.filter(c => c.id !== id); localStorage.setItem('car_list', JSON.stringify(windowState.cars)); saveStateToCloud(); render(); } };
+    window.openCarBorrowModal = (carId) => { windowState.modalData = { carId, startMileage: windowState.cars.find(c => c.id === carId)?.currentMileage || 0 }; windowState.activeModal = 'carBorrowModal'; render(); };
     window.handleBorrowCarSubmit = (e) => {
       e.preventDefault();
       const m = windowState.modalData;
       const dest = document.getElementById('borrow-destination').value.trim();
       const mileage = Number(document.getElementById('borrow-mileage').value);
-
-      windowState.cars = windowState.cars.map(c => c.id === m.carId ? {
-        ...c, status: 'in-use', currentMileage: mileage, currentDriver: windowState.currentUser.name
-      } : c);
-
-      const newRec = {
-        id: 'rec_' + Date.now(),
-        carId: m.carId,
-        plate: windowState.cars.find(c => c.id === m.carId)?.plate,
-        driver: windowState.currentUser.name,
-        startDate: todayStr,
-        startTime: new Date().toTimeString().substring(0, 5),
-        startMileage: mileage,
-        returnDate: null,
-        returnTime: null,
-        returnMileage: null,
-        isRefuel: false,
-        refuelLiters: 0,
-        refuelCost: 0,
-        notes: dest
-      };
-
-      windowState.carRecords.unshift(newRec);
-      localStorage.setItem('car_list', JSON.stringify(windowState.cars));
-      localStorage.setItem('car_records', JSON.stringify(windowState.carRecords));
-
-      saveStateToCloud();
-      windowState.activeModal = null;
-      showToast('🚗 公務車出發登記成功！');
-      render();
+      windowState.cars = windowState.cars.map(c => c.id === m.carId ? { ...c, status: 'in-use', currentMileage: mileage, currentDriver: windowState.currentUser.name } : c);
+      windowState.carRecords.unshift({ id: 'rec_' + Date.now(), carId: m.carId, plate: windowState.cars.find(c => c.id === m.carId)?.plate, driver: windowState.currentUser.name, startDate: todayStr, startTime: new Date().toTimeString().slice(0,5), startMileage: mileage, returnDate: null, returnTime: null, returnMileage: null, isRefuel: false, refuelLiters: 0, refuelCost: 0, notes: dest });
+      localStorage.setItem('car_list', JSON.stringify(windowState.cars)); localStorage.setItem('car_records', JSON.stringify(windowState.carRecords));
+      saveStateToCloud(); windowState.activeModal = null; showToast('🚗 出發登記成功！'); render();
     };
-
     window.returnCarAction = (carId) => {
-      const car = windowState.cars.find(c => c.id === carId);
-      if (!car) return;
-      const record = windowState.carRecords.find(r => r.carId === carId && r.returnMileage === null);
-      if (!record) {
-        showToast('找不到對應的出發紀錄', 'error');
-        return;
-      }
-
-      windowState.modalData = { recordId: record.id, carId, startMileage: record.startMileage, plate: car.plate };
-      windowState.activeModal = 'carReturnModal';
-      render();
+      const rec = windowState.carRecords.find(r => r.carId === carId && r.returnMileage === null);
+      if (rec) { windowState.modalData = { recordId: rec.id, carId, startMileage: rec.startMileage, plate: rec.plate }; windowState.activeModal = 'carReturnModal'; render(); }
     };
-
     window.handleReturnCarSubmit = (e) => {
       e.preventDefault();
       const m = windowState.modalData;
-      const returnMileage = parseInt(document.getElementById('modal-return-mileage').value);
-      const isRefuel = document.getElementById('modal-is-refuel')?.checked || false;
-      const refuelLiters = isRefuel ? parseFloat(document.getElementById('modal-refuel-liters').value) || 0 : 0;
-      const refuelCost = isRefuel ? parseFloat(document.getElementById('modal-refuel-cost').value) || 0 : 0;
-      const notes = document.getElementById('modal-notes').value;
-
-      if (returnMileage < m.startMileage) {
-        alert('❌ 歸還里程數不可小於出發里程數！');
-        return;
-      }
-
-      const record = windowState.carRecords.find(r => r.id === m.recordId);
-      if (record) {
-        record.returnDate = todayStr;
-        record.returnTime = new Date().toTimeString().substring(0, 5);
-        record.returnMileage = returnMileage;
-        record.isRefuel = isRefuel;
-        record.refuelLiters = refuelLiters;
-        record.refuelCost = refuelCost;
-        record.notes = notes || '車況正常';
-      }
-
-      const car = windowState.cars.find(c => c.id === m.carId);
-      if (car) {
-        car.currentMileage = returnMileage;
-        car.status = 'available';
-        car.currentDriver = '';
-      }
-
-      localStorage.setItem('car_list', JSON.stringify(windowState.cars));
-      localStorage.setItem('car_records', JSON.stringify(windowState.carRecords));
-      saveStateToCloud();
-      windowState.activeModal = null;
-      showToast('✅ 還車登記已完成！');
-      render();
+      const retMil = Number(document.getElementById('modal-return-mileage').value);
+      const isRef = document.getElementById('modal-is-refuel')?.checked || false;
+      const rec = windowState.carRecords.find(r => r.id === m.recordId);
+      if (rec) { rec.returnDate = todayStr; rec.returnTime = new Date().toTimeString().slice(0,5); rec.returnMileage = retMil; rec.isRefuel = isRef; rec.refuelLiters = isRef ? Number(document.getElementById('modal-refuel-liters').value)||0 : 0; rec.refuelCost = isRef ? Number(document.getElementById('modal-refuel-cost').value)||0 : 0; rec.notes = document.getElementById('modal-notes').value || '車況正常'; }
+      windowState.cars = windowState.cars.map(c => c.id === m.carId ? { ...c, currentMileage: retMil, status: 'available', currentDriver: '' } : c);
+      localStorage.setItem('car_list', JSON.stringify(windowState.cars)); localStorage.setItem('car_records', JSON.stringify(windowState.carRecords));
+      saveStateToCloud(); windowState.activeModal = null; showToast('✅ 還車完成！'); render();
     };
+    window.toggleModalRefuelFields = () => { const el = document.getElementById('modal-refuel-details'); if(el) el.classList.toggle('hidden'); };
+    window.resetService = (carId) => { windowState.cars = windowState.cars.map(c => c.id === carId ? { ...c, lastServiceMileage: c.currentMileage } : c); localStorage.setItem('car_list', JSON.stringify(windowState.cars)); saveStateToCloud(); showToast('🛠️ 保養歸零成功！'); render(); };
+    window.deleteCarRecord = (id) => { if(confirm('確定刪除紀錄？')) { windowState.carRecords = windowState.carRecords.filter(r => r.id !== id); localStorage.setItem('car_records', JSON.stringify(windowState.carRecords)); saveStateToCloud(); render(); } };
 
-    window.toggleModalRefuelFields = () => {
-      const isChecked = document.getElementById('modal-is-refuel')?.checked;
-      const container = document.getElementById('modal-refuel-details');
-      if (container) {
-        if (isChecked) container.classList.remove('hidden');
-        else container.classList.add('hidden');
-      }
-    };
-
-    window.resetService = (carId) => {
-      const car = windowState.cars.find(c => c.id === carId);
-      if (car) {
-        car.lastServiceMileage = car.currentMileage;
-        localStorage.setItem('car_list', JSON.stringify(windowState.cars));
-        saveStateToCloud();
-        showToast(`已更新 ${car.plate} 的保養紀錄！`);
-        render();
-      }
-    };
-
-    window.deleteCarRecord = (id) => {
-      if (confirm('確定要刪除這筆用車紀錄嗎？')) {
-        const rec = windowState.carRecords.find(r => r.id === id);
-        if (rec && rec.returnMileage === null) {
-          const car = windowState.cars.find(c => c.id === rec.carId);
-          if (car) { car.status = 'available'; car.currentDriver = ''; }
-        }
-        windowState.carRecords = windowState.carRecords.filter(r => r.id !== id);
-        localStorage.setItem('car_records', JSON.stringify(windowState.carRecords));
-        saveStateToCloud();
-        showToast('紀錄已刪除');
-        render();
-      }
-    };
-
-    window.exportCarCSV = () => {
-      const records = windowState.carRecords || [];
-      if (records.length === 0) {
-        showToast('目前沒有可匯出的紀錄', 'error');
-        return;
-      }
-      let csvContent = "\uFEFF" + "車牌,駕駛人,出發日期,出發時間,出發里程,歸還日期,歸還時間,歸還里程,行駛距離,是否加油,加油公升數,加油金額,備註\n";
-      records.forEach(r => {
-        const distance = r.returnMileage !== null ? (r.returnMileage - r.startMileage) : '';
-        const row = [
-          r.plate, r.driver, r.startDate, r.startTime, r.startMileage,
-          r.returnDate || '', r.returnTime || '', r.returnMileage !== null ? r.returnMileage : '',
-          distance, r.isRefuel ? '是' : '否', r.refuelLiters || '', r.refuelCost || '',
-          `"${(r.notes || '').replace(/"/g, '""')}"`
-        ];
-        csvContent += row.join(",") + "\n";
-      });
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.setAttribute('href', url);
-      a.setAttribute('download', `公務車完整報表_${todayStr}.csv`);
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      showToast('完整報表匯出成功！');
-    };
-
-    function renderModals() {
-      if (!windowState.activeModal) return '';
-      if (windowState.activeModal === 'admin') {
-        return `
-          <div class="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
-            <form onsubmit="handleAdminLoginSubmit(event)" class="bg-white rounded-3xl max-w-sm w-full p-6 space-y-3">
-              <h3 class="font-bold text-slate-900 text-base">🔑 解鎖管理員權限</h3>
-              <input type="password" maxlength="4" id="admin-pin-input" required placeholder="••••" class="w-full p-2.5 border rounded-xl text-center font-mono text-lg" />
-              <div class="flex justify-end gap-2 pt-2">
-                <button type="button" onclick="closeModal()" class="px-4 py-2 text-xs text-slate-600">取消</button>
-                <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold">解鎖</button>
-              </div>
-            </form>
-          </div>
-        `;
-      }
-      if (windowState.activeModal === 'carEditModal') {
-        const m = windowState.modalData;
-        return `
-          <div class="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
-            <form onsubmit="handleSaveCarSubmit(event)" class="bg-white rounded-3xl max-w-md w-full p-6 space-y-3">
-              <h3 class="font-bold text-slate-900 text-base">${m.isEdit ? '✏️ 編輯公務車' : '➕ 新增公務車'}</h3>
-              <div class="space-y-2 text-xs">
-                <div class="grid grid-cols-2 gap-2">
-                  <div><label class="font-bold">車牌號碼</label><input type="text" id="car-modal-plate" required value="${m.plate || ''}" class="w-full p-2.5 border rounded-xl font-bold" /></div>
-                  <div><label class="font-bold">車款型號</label><input type="text" id="car-modal-model" required value="${m.model || ''}" class="w-full p-2.5 border rounded-xl font-bold" /></div>
-                </div>
-                <div class="grid grid-cols-2 gap-2">
-                  <div><label class="font-bold">當前里程 (km)</label><input type="number" id="car-modal-mileage" required value="${m.currentMileage || 0}" class="w-full p-2.5 border rounded-xl font-mono" /></div>
-                  <div><label class="font-bold">保養間隔 (km)</label><input type="number" id="car-modal-interval" required value="${m.serviceInterval || 5000}" class="w-full p-2.5 border rounded-xl font-mono" /></div>
-                </div>
-                <div><label class="font-bold">📸 車輛照片</label><input type="file" accept="image/*" onchange="handleCarPhotoUploadInModal(event)" class="w-full p-1 border rounded-xl text-xs" /></div>
-              </div>
-              <div class="flex justify-end gap-2 pt-2">
-                <button type="button" onclick="closeModal()" class="px-4 py-2 text-xs text-slate-600">取消</button>
-                <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold">儲存</button>
-              </div>
-            </form>
-          </div>
-        `;
-      }
-      if (windowState.activeModal === 'carBorrowModal') {
-        const m = windowState.modalData;
-        const car = windowState.cars.find(c => c.id === m.carId);
-        return `
-          <div class="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
-            <form onsubmit="handleBorrowCarSubmit(event)" class="bg-white rounded-3xl max-w-sm w-full p-6 space-y-3">
-              <h3 class="font-bold text-slate-900 text-base">🔑 登記借用【${car?.plate}】</h3>
-              <div class="space-y-2 text-xs">
-                <div><label class="font-bold">目的地 / 事由</label><input type="text" id="borrow-destination" required class="w-full p-2.5 border rounded-xl" /></div>
-                <div><label class="font-bold">出發里程 (km)</label><input type="number" id="borrow-mileage" required value="${m.startMileage}" class="w-full p-2.5 border rounded-xl font-mono" /></div>
-              </div>
-              <div class="flex justify-end gap-2 pt-2">
-                <button type="button" onclick="closeModal()" class="px-4 py-2 text-xs text-slate-600">取消</button>
-                <button type="submit" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold">確認登記</button>
-              </div>
-            </form>
-          </div>
-        `;
-      }
-      if (windowState.activeModal === 'carReturnModal') {
-        const m = windowState.modalData;
-        return `
-          <div class="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
-            <form onsubmit="handleReturnCarSubmit(event)" class="bg-white rounded-3xl max-w-md w-full p-6 space-y-3">
-              <h3 class="font-bold text-slate-900 text-base">✅ 還車登記 (${m.plate})</h3>
-              <div class="space-y-2 text-xs">
-                <div><label class="font-bold">歸還里程 (km)</label><input type="number" id="modal-return-mileage" required value="${m.startMileage + 15}" class="w-full p-2.5 border rounded-xl font-mono" /></div>
-                <div><label class="font-bold">備註</label><textarea id="modal-notes" rows="2" class="w-full p-2.5 border rounded-xl"></textarea></div>
-              </div>
-              <div class="flex justify-end gap-2 pt-2">
-                <button type="button" onclick="closeModal()" class="px-4 py-2 text-xs text-slate-600">取消</button>
-                <button type="submit" class="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold">完成還車</button>
-              </div>
-            </form>
-          </div>
-        `;
-      }
-      return '';
+    // 核心模組與輔助函數
+    function shiftTypesConfig() {
+      return [
+        { type: '上班', label: '上班', color: 'bg-sky-100 text-sky-900 border-sky-300 font-bold' },
+        { type: '休假', label: '休假', color: 'bg-rose-100 text-rose-900 border-rose-300 font-bold' },
+        { type: '加班', label: '加班', color: 'bg-amber-200 text-amber-950 border-amber-400 font-extrabold' },
+        { type: '特半', label: '特半', color: 'bg-emerald-100 text-emerald-900 border-emerald-300 font-bold' },
+        { type: '特一', label: '特一', color: 'bg-emerald-200 text-emerald-950 border-emerald-400 font-extrabold' },
+        { type: '事假', label: '事假', color: 'bg-amber-100 text-amber-900 border-amber-300 font-bold' },
+        { type: '病假', label: '病假', color: 'bg-orange-100 text-orange-900 border-orange-300 font-bold' },
+        { type: '陪產', label: '陪產', color: 'bg-purple-100 text-purple-900 border-purple-300 font-bold' },
+        { type: '婚假', label: '婚假', color: 'bg-pink-100 text-pink-900 border-pink-300 font-bold' },
+        { type: '喪假', label: '喪假', color: 'bg-slate-200 text-slate-900 border-slate-400 font-bold' }
+      ];
     }
 
-    function renderHeader() {
-      const warningOrExpiredEmps = windowState.employees.filter(e => {
-        const info = getHealthCheckInfo(e.healthCheckDate);
-        return info.isExpired || info.isWarning;
+    function getNationalHolidayName(year, month, day) {
+      const key = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+      const holidays = { [`${year}-01-01`]: '元旦', [`${year}-02-28`]: '和平紀念日', [`${year}-04-04`]: '兒童節', [`${year}-04-05`]: '清明節', [`${year}-05-01`]: '勞動節', [`${year}-10-10`]: '國慶日' };
+      return holidays[key] || null;
+    }
+
+    function getMonthDaysData(year, month) {
+      const daysInMonth = new Date(year, month, 0).getDate();
+      const firstDayOffset = new Date(year, month - 1, 1).getDay();
+      const days = [];
+      for (let i = 1; i <= daysInMonth; i++) {
+        const dObj = new Date(year, month - 1, i);
+        const dayOfWeek = dObj.getDay();
+        const weekDay = ['（日）', '（一）', '（二）', '（三）', '（四）', '（五）', '（六）'][dayOfWeek];
+        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+        const holidayName = getNationalHolidayName(year, month, i);
+        days.push({ day: i, dateStr: `${year}-${String(month).padStart(2,'0')}-${String(i).padStart(2,'0')}`, weekDay, isWeekend, holidayName, isHoliday: !!holidayName });
+      }
+      return { days, firstDayOffset, totalRedDays: days.filter(d => d.isWeekend || d.isHoliday).length };
+    }
+
+    function getStaffShiftOnDate(empName, dateStr) {
+      const dObj = new Date(dateStr);
+      const y = dObj.getFullYear(), m = dObj.getMonth() + 1;
+      const key = `${y}-${m}-${empName}`;
+      const userShifts = windowState.schedules[key];
+      const isH = getNationalHolidayName(y, m, dObj.getDate()) || dObj.getDay() === 0 || dObj.getDay() === 6;
+      return userShifts ? (userShifts[dObj.getDate() - 1] || (isH ? '休假' : '上班')) : (isH ? '休假' : '上班');
+    }
+
+    function calculateScheduleAndConflicts() {
+      const { days, firstDayOffset, totalRedDays } = getMonthDaysData(windowState.scheduleYear, windowState.scheduleMonth);
+      const activeEmps = windowState.employees.filter(e => e.status !== '離職');
+      const fullSchedules = activeEmps.map(emp => {
+        const key = `${windowState.scheduleYear}-${windowState.scheduleMonth}-${emp.name}`;
+        const shifts = windowState.schedules[key] || days.map(m => (m.isWeekend || m.isHoliday ? '休假' : '上班'));
+        let scheduledOffCount = 0;
+        shifts.forEach(s => { if (['休假', '事假', '病假', '陪產', '婚假', '喪假', '特一'].includes(s)) scheduledOffCount += 1; else if (s === '特半') scheduledOffCount += 0.5; });
+        const hcInfo = getHealthCheckInfo(emp.healthCheckDate);
+        return { empName: emp.name, role: emp.role, isHealthExpired: hcInfo.isExpired, shifts, requiredOffDays: totalRedDays, scheduledOffCount, remainingUnscheduledOff: totalRedDays - scheduledOffCount };
       });
+      const dailyWorkingCounts = {};
+      days.forEach((m, dIdx) => {
+        let count = 0;
+        fullSchedules.forEach(es => { if (['上班', '特半', '加班'].includes(es.shifts[dIdx] || '上班')) count++; });
+        dailyWorkingCounts[m.day] = count;
+      });
+      return { days, firstDayOffset, fullSchedules, dailyWorkingCounts, totalRedDays };
+    }
 
+    function maskText(text, type) {
+      if (windowState.isAdmin) return text;
+      if (!text) return '***';
+      if (type === 'phone') return text.slice(0, 3) + '****' + text.slice(-2);
+      if (type === 'address') return text.slice(0, 6) + '***';
+      return text;
+    }
+
+    // 模組介面渲染
+    function renderAnnouncements() {
+      const sorted = [...windowState.announcements].sort((a, b) => (b.isPinned ? 1 : -1));
       return `
-        <header class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-4 sm:p-5 shadow-lg relative no-print">
-          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-3">
-            <div class="flex items-center space-x-3">
-              <div class="relative group cursor-pointer" title="點擊更換品牌 Logo" onclick="document.getElementById('logo-file-input').click()">
-                <img src="${windowState.logoUrl}" alt="Logo" class="w-14 h-14 object-contain bg-white rounded-2xl p-1 shadow-md border border-amber-300/40" />
-                <input id="logo-file-input" type="file" accept="image/*" onchange="handleLogoUpload(event)" class="hidden" />
-              </div>
-              <div>
-                <h1 class="font-black text-white text-xl tracking-wide">全錸蒔國際餐飲 營運管理系統</h1>
-                <div class="flex items-center space-x-2 mt-0.5">
-                  <p class="text-xs text-amber-300 font-semibold italic">“${windowState.slogan}”</p>
-                  ${windowState.isAdmin ? `
-                    <button onclick="updateSystemSlogan()" class="bg-amber-400 text-slate-950 px-2 py-0.5 rounded text-[10px] font-extrabold cursor-pointer">
-                      ✏️ 修改標語
-                    </button>
-                  ` : ''}
-                </div>
-              </div>
-            </div>
-
-            <div class="flex items-center space-x-2">
-              <span class="text-xs bg-emerald-500/20 text-emerald-300 px-2.5 py-1.5 rounded-xl border border-emerald-500/40 font-bold">🟢 雲端連線中</span>
-              <span class="text-xs bg-white/10 px-3 py-1.5 rounded-xl border border-white/20 font-bold">👤 ${windowState.currentUser.name}</span>
-              <button onclick="userLogout()" class="bg-rose-600 hover:bg-rose-700 text-white font-bold px-2.5 py-1.5 rounded-xl text-xs shadow cursor-pointer">登出</button>
-              ${windowState.isAdmin ? `
-                <button onclick="toggleAdminLock()" class="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-extrabold px-3 py-1.5 rounded-xl text-xs shadow cursor-pointer">
-                  🔓 管理員已解鎖
-                </button>
-              ` : `
-                <button onclick="openAdminModal()" class="bg-amber-400 hover:bg-amber-500 text-slate-950 px-3 py-1.5 rounded-xl font-bold text-xs shadow cursor-pointer">
-                  🔑 解鎖管理員
-                </button>
-              `}
-            </div>
+        <div class="space-y-4">
+          <div class="bg-white p-4 rounded-2xl border flex justify-between items-center shadow-xs">
+            <h2 class="font-extrabold text-slate-900 text-base">📢 總部即時布告欄</h2>
+            ${windowState.isAdmin ? `<button onclick="openAnnModal()" class="bg-indigo-600 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold cursor-pointer">+ 發布新公告</button>` : ''}
           </div>
-
-          <div class="grid grid-cols-3 sm:grid-cols-9 gap-1 text-[11px]">
-            ${[
-              { id: 'announcements', label: '1.布告欄' },
-              { id: 'tasks', label: '2.工作行事曆' },
-              { id: 'schedule', label: '3.月排班表' },
-              { id: 'attendance', label: '4.員工打卡' },
-              { id: 'lateReport', label: '5.遲到統計' },
-              { id: 'carManagement', label: '6.公務車登記' },
-              { id: 'hrRoster', label: '7.HR員工名冊' },
-              { id: 'evaluation', label: '8.員工考核' },
-              { id: 'annualEval', label: '9.年度考核彙整' }
-            ].map(tab => `
-              <button
-                onclick="switchModule('${tab.id}')"
-                class="py-2 px-1 rounded-xl font-bold transition-all text-center cursor-pointer ${
-                  windowState.activeModule === tab.id ? 'bg-amber-400 text-slate-950 shadow-md font-black scale-[1.02]' : 'bg-white/10 text-slate-200 hover:bg-white/20'
-                }"
-              >
-                ${tab.label}
-              </button>
+          <div class="space-y-3">
+            ${sorted.map(ann => `
+              <div class="bg-white p-5 rounded-2xl border shadow-xs space-y-2 relative ${ann.isPinned ? 'border-amber-400 bg-amber-50/20' : 'border-slate-200'}">
+                <div class="flex justify-between items-center">
+                  <span class="px-2.5 py-0.5 font-extrabold text-[11px] rounded-lg border bg-amber-100 text-amber-900">${ann.level || '🟠 重要'}</span>
+                  ${windowState.isAdmin ? `<button onclick="deleteAnnouncement(${ann.id})" class="text-rose-600 font-bold text-xs">🗑️ 刪除</button>` : ''}
+                </div>
+                <h3 class="font-bold text-slate-900 text-base">${ann.title}</h3>
+                <p class="text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border">${ann.content}</p>
+                ${ann.imageUrl ? `<img src="${ann.imageUrl}" class="mt-2 rounded-xl max-h-64 object-contain mx-auto border" />` : ''}
+              </div>
             `).join('')}
           </div>
-        </header>
+        </div>
       `;
+    }
+
+    function renderTasks() {
+      const { days, firstDayOffset } = getMonthDaysData(windowState.scheduleYear, windowState.scheduleMonth);
+      const todayTaskList = [...windowState.tasks.filter(t => t.date === todayStr)].sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
+      const selectedTaskList = [...windowState.tasks.filter(t => t.date === windowState.selectedTaskDate)].sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
+
+      return `
+        <div class="space-y-4">
+          <div class="bg-gradient-to-r from-indigo-900 via-slate-900 to-indigo-950 text-white p-5 rounded-2xl shadow-md space-y-3">
+            <div class="flex justify-between items-center border-b border-indigo-400/30 pb-3">
+              <h2 class="font-black text-white text-lg">☀️【${todayStr}】今日工作排程與備料檢查</h2>
+              <button onclick="openCreateTaskModal('${todayStr}')" class="bg-amber-400 text-slate-950 px-3.5 py-1.5 rounded-xl font-black text-xs cursor-pointer">+ 新增今日工作</button>
+            </div>
+            <div class="space-y-2">
+              ${todayTaskList.map(t => `
+                <div class="p-3.5 rounded-xl text-xs space-y-2 bg-white/10 border border-white/20 text-white">
+                  <div class="flex justify-between items-center">
+                    <span class="px-2 py-0.5 bg-amber-400 text-slate-950 font-black rounded-lg text-[10px]">${t.category}</span>
+                    <button onclick="initiateCompleteTask(${t.id})" class="px-2.5 py-1 rounded font-bold ${t.status === '已完成' ? 'bg-emerald-500 text-slate-950' : 'bg-amber-400 text-slate-950'}">${t.status === '已完成' ? '✅ 已完成' : '⏳ 點擊完成'}</button>
+                  </div>
+                  <h4 class="font-black text-amber-300 text-sm">${t.title}</h4>
+                  <p class="text-slate-200 bg-black/30 p-2 rounded-lg">${t.content}</p>
+                </div>
+              `).join('')}
+              ${todayTaskList.length === 0 ? `<p class="text-xs text-slate-300 text-center py-4">今天尚無安排工作行程</p>` : ''}
+            </div>
+          </div>
+
+          <div class="bg-white p-4 rounded-2xl border shadow-xs space-y-3">
+            <div class="flex justify-between items-center border-b pb-2">
+              <h3 class="font-extrabold text-slate-900 text-sm">🗓️ 月曆總覽 (點擊日期檢視行程)</h3>
+              <button onclick="openCreateTaskModal('${windowState.selectedTaskDate}')" class="bg-indigo-600 text-white px-3 py-1 rounded-xl font-bold text-xs">+ 新增行程</button>
+            </div>
+            <div class="grid grid-cols-7 gap-1 text-center text-xs">
+              ${['日', '一', '二', '三', '四', '五', '六'].map(d => `<div class="font-black py-1 ${d === '日' || d === '六' ? 'text-rose-600' : 'text-slate-500'}">週${d}</div>`).join('')}
+              ${Array.from({ length: firstDayOffset }).map(() => `<div class="min-h-[75px] bg-slate-50 rounded-xl border border-dashed border-slate-200"></div>`).join('')}
+              ${days.map(m => `
+                <div onclick="selectCalendarDate('${m.dateStr}')" class="min-h-[75px] p-1.5 rounded-xl border text-left cursor-pointer transition-all ${windowState.selectedTaskDate === m.dateStr ? 'border-indigo-600 bg-indigo-50/70 ring-2 ring-indigo-500' : 'bg-white hover:bg-slate-50'}">
+                  <div class="text-[11px] font-mono font-black ${m.isWeekend || m.isHoliday ? 'text-rose-600' : 'text-slate-800'}">${m.day}日</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderSchedule() {
+      const { days, fullSchedules, dailyWorkingCounts, totalRedDays } = calculateScheduleAndConflicts();
+      const shiftOptionsList = ['上班', '休假', '加班', '特半', '特一', '事假', '病假', '陪產', '婚假', '喪假'];
+
+      return `
+        <div class="bg-white p-4 rounded-2xl border space-y-4 shadow-xs">
+          <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-2 border-b pb-3">
+            <h2 class="font-extrabold text-slate-900 text-base">📅 全月排班表 (點擊儲存格更換班別)</h2>
+            <button onclick="autoFillDefaultSchedule()" class="bg-indigo-600 text-white font-bold px-3 py-1.5 rounded-xl text-xs cursor-pointer">⚡ 填入標準班表</button>
+          </div>
+          <div class="overflow-x-auto border rounded-2xl">
+            <table class="w-full text-xs min-w-[1250px] border-collapse">
+              <thead>
+                <tr class="bg-slate-100 border-b text-slate-700">
+                  <th class="p-2.5 w-44 border-r sticky left-0 bg-slate-100 z-20">同仁姓名</th>
+                  ${days.map(m => `<th class="p-1.5 text-center border-r min-w-[56px] ${m.isWeekend || m.isHoliday ? 'bg-rose-50/50 text-rose-700 font-bold' : ''}">${windowState.scheduleMonth}/${m.day}</th>`).join('')}
+                </tr>
+              </thead>
+              <tbody>
+                ${fullSchedules.map(empSched => `
+                  <tr class="border-b hover:bg-slate-50">
+                    <td class="p-2.5 font-bold sticky left-0 bg-white border-r z-10">${empSched.empName}</td>
+                    ${days.map((m, dIdx) => {
+                      const shiftVal = empSched.shifts[dIdx] || '上班';
+                      return `
+                        <td class="p-1.5 text-center border-r">
+                          <select onchange="handleShiftSelectChange('${empSched.empName}', ${dIdx}, this)" class="shift-select w-full py-2 px-1 rounded-lg border text-[11px] font-bold">
+                            ${shiftOptionsList.map(opt => `<option value="${opt}" ${shiftVal === opt ? 'selected' : ''}>${opt}</option>`).join('')}
+                          </select>
+                        </td>
+                      `;
+                    }).join('')}
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderAttendance() {
+      const { days } = getMonthDaysData(windowState.scheduleYear, windowState.scheduleMonth);
+      const targetEmp = windowState.employees.find(e => e.name === windowState.selectedCardStaff) || windowState.employees[0];
+
+      return `
+        <div class="space-y-4">
+          <div class="bg-gradient-to-r from-slate-900 to-indigo-950 text-white p-5 rounded-2xl space-y-3 shadow-lg">
+            <h3 class="text-xl font-bold">🏢 公司考勤與打卡</h3>
+            <div class="bg-slate-800 p-3 rounded-2xl text-center">
+              <p class="text-xs text-amber-300">目前即時時間</p>
+              <p id="live-clock-display" class="text-3xl font-black font-mono text-white">--:--:--</p>
+            </div>
+            <div class="flex gap-2">
+              <button onclick="executeClockAction('in')" class="flex-1 bg-emerald-500 font-bold py-3 rounded-xl text-xs text-slate-950 cursor-pointer">☀️ 上班打卡</button>
+              <button onclick="executeClockAction('out')" class="flex-1 bg-rose-600 font-bold py-3 rounded-xl text-xs text-white cursor-pointer">🌙 下班打卡</button>
+            </div>
+          </div>
+          <div class="bg-white p-5 rounded-2xl border shadow-md space-y-3">
+            <h3 class="font-black text-slate-900 text-base">🗓️ ${targetEmp.name} 考勤紀錄表</h3>
+            <table class="w-full text-xs text-center border">
+              <thead class="bg-slate-100 border-b">
+                <tr><th class="p-2 border-r">日期</th><th class="p-2 border-r">上班刷卡</th><th class="p-2 border-r">下班刷卡</th><th class="p-2">工時狀態</th></tr>
+              </thead>
+              <tbody>
+                ${days.map(m => {
+                  const rec = windowState.clockRecords.find(c => c.name === targetEmp.name && c.date === m.dateStr);
+                  return `
+                    <tr class="border-b">
+                      <td class="p-2 border-r font-mono">${windowState.scheduleMonth}/${m.day}</td>
+                      <td class="p-2 border-r font-mono">${rec ? rec.clockIn : '--:--'}</td>
+                      <td class="p-2 border-r font-mono">${rec ? rec.clockOut : '--:--'}</td>
+                      <td class="p-2">${rec ? rec.status : '-'}</td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderLateReport() {
+      const uniqueRecords = getUniqueClockRecords();
+      return `
+        <div class="bg-white p-5 rounded-2xl border space-y-4">
+          <h2 class="font-extrabold text-slate-900 text-base">📊 遲到統計報表</h2>
+          <table class="w-full text-xs text-left border">
+            <thead class="bg-slate-100 border-b"><tr><th class="p-2">姓名</th><th class="p-2">職稱</th><th class="p-2">遲到次數</th></tr></thead>
+            <tbody>
+              ${windowState.employees.map(e => `
+                <tr class="border-b"><td class="p-2 font-bold">${e.name}</td><td class="p-2">${e.role}</td><td class="p-2 text-rose-600 font-black">${uniqueRecords.filter(c => c.name === e.name && c.status.includes('遲到')).length} 次</td></tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function renderHrRoster() {
+      const activeList = windowState.employees.filter(e => e.status !== '離職');
+      return `
+        <div class="bg-white p-5 rounded-2xl border space-y-4">
+          <h2 class="font-extrabold text-slate-900 text-base">👥 HR 門市員工名冊</h2>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            ${activeList.map(emp => `
+              <div class="bg-white p-4 rounded-2xl border space-y-1 text-xs shadow-xs">
+                <div class="font-black text-sm">${emp.name} (${emp.role})</div>
+                <p>電話：${maskText(emp.phone, 'phone')}</p>
+                <p>特休剩餘：${emp.leaveEntitled - emp.leaveUsed} 天</p>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderEvaluations() {
+      return `<div class="bg-white p-6 rounded-2xl border"><h2 class="font-bold text-base">🏅 員工績效考核</h2><p class="text-xs text-slate-500 mt-2">請透過管理員權限進行考核封存與評分。</p></div>`;
+    }
+
+    function renderAnnualEvaluation() {
+      return `<div class="bg-white p-6 rounded-2xl border"><h2 class="font-bold text-base">📈 年度考核彙整</h2><p class="text-xs text-slate-500 mt-2">年度彙整資料將依月份封存自動帶入。</p></div>`;
     }
 
     function render() {
