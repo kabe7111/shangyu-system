@@ -23,10 +23,19 @@
         top: 0 !important;
         width: 100% !important;
         background: white !important;
-        padding: 0 !important;
+        padding: 5px !important;
         margin: 0 !important;
       }
       .no-print { display: none !important; }
+      @page { size: A4 portrait; margin: 10mm; }
+    }
+    .shift-select {
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+      text-align: center;
+      text-align-last: center;
+      cursor: pointer;
     }
   </style>
 </head>
@@ -60,7 +69,7 @@
       console.warn("Firebase Init Warning: ", e);
     }
 
-    const defaultLogoSvg = `data:image/svg+xml;utf8,${encodeURIComponent(`
+    const defaultLogoSvg = "data:image/svg+xml;utf8," + encodeURIComponent(`
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 220" width="200" height="220">
         <path id="arch" d="M 30,62 A 70,70 0 0,1 170,62" fill="none"/>
         <text font-family="Arial, sans-serif" font-size="16" font-weight="900" fill="#000">
@@ -71,14 +80,15 @@
         <path d="M 100,85 L 115,85 M 85,135 L 105,135" stroke="#000" stroke-width="5" stroke-linecap="round"/>
         <text x="100" y="208" font-family="Georgia, serif" font-size="16" font-weight="bold" fill="#000" text-anchor="middle">Since 2022</text>
       </svg>
-    `)}`;
+    `);
 
     const initialEmployees = [
-      { id: 'E001', name: '王聖銓', role: '亞太十大菁英名廚 / 總店長', dept: '門市/外場', type: '正職員工', status: '在職', healthCheckStatus: '🟢 合格', pin: '8888', phone: '0912-345-678', emergencyContact: '王太太 (妻子)', emergencyPhone: '0911-111-222', address: '台北市信義區忠孝東路五段 100 號 5 樓', birthday: '1988-10-15', joinDate: '2022-03-15', leaveEntitled: 10, leaveUsed: 4.5, note: '擅長製作法式位上私廚料理，負責門市全盤營運' },
-      { id: 'E002', name: '陳副店', role: '門市副店長', dept: '門市/外場', type: '正職員工', status: '在職', healthCheckStatus: '🟢 合格', pin: '8888', phone: '0923-456-789', emergencyContact: '陳先生 (父親)', emergencyPhone: '0922-222-333', address: '新北市板橋區文化路一段 88 號 3 樓', birthday: '1992-08-28', joinDate: '2023-08-01', leaveEntitled: 7, leaveUsed: 2, note: '支援外場調酒及現場服務動線規劃' },
-      { id: 'E003', name: '林小婷', role: '外場資深服務員', dept: '門市/外場', type: '兼職 (PT)', status: '在職', healthCheckStatus: '🔴 體檢已過期', pin: '8888', phone: '0934-567-890', emergencyContact: '林女士 (母親)', emergencyPhone: '0933-333-444', address: '台北市中山區南京東路二段 45 號 2 樓', birthday: '1998-07-30', joinDate: '2024-02-10', leaveEntitled: 3, leaveUsed: 1, note: '兼職，今日壽星！體檢過期禁止排班' },
-      { id: 'E004', name: '張阿強', role: '內場備料廚師', dept: '兼職 (PT)', status: '在職', healthCheckStatus: '🟢 合格', pin: '8888', phone: '0945-678-901', emergencyContact: '張大哥 (哥哥)', emergencyPhone: '0944-444-555', address: '桃園市中壢區中華路二段 12 號', birthday: '1995-09-12', joinDate: '2024-05-20', leaveEntitled: 3, leaveUsed: 0, note: '負責桃園央廚調理包排產與備料' },
-      { id: 'E005', name: '黃智勝', role: '主廚師傅', dept: '內場廚務', type: '正職員工', status: '在職', healthCheckStatus: '🟢 合格', pin: '8888', phone: '0967-890-123', emergencyContact: '黃太太 (妻子)', emergencyPhone: '0966-666-777', address: '新北市三重區正義北路 50 號', birthday: '1990-12-18', joinDate: '2022-06-01', leaveEntitled: 10, leaveUsed: 5, note: '法式位上私廚與新菜色研發主管' }
+      { id: 'E001', name: '王聖銓', role: '亞太十大菁英名廚 / 總店長', dept: '門市/外場', type: '正職員工', status: '在職', healthCheckDate: '2025-06-15', pin: '8888', phone: '0912-345-678', emergencyContact: '王太太 (妻子)', emergencyPhone: '0911-111-222', address: '台北市信義區忠孝東路五段 100 號 5 樓', birthday: '1988-10-15', joinDate: '2022-03-15', leaveEntitled: 10, leaveUsed: 4.5, note: '擅長製作法式位上私廚料理，負責門市全盤營運' },
+      { id: 'E002', name: '陳副店', role: '門市副店長', dept: '門市/外場', type: '正職員工', status: '在職', healthCheckDate: '2025-08-01', pin: '8888', phone: '0923-456-789', emergencyContact: '陳先生 (父親)', emergencyPhone: '0922-222-333', address: '新北市板橋區文化路一段 88 號 3 樓', birthday: '1992-08-28', joinDate: '2023-08-01', leaveEntitled: 7, leaveUsed: 2, note: '支援外場調酒及現場服務動線規劃' },
+      { id: 'E003', name: '林小婷', role: '外場資深服務員', dept: '門市/外場', type: '兼職 (PT)', status: '在職', healthCheckDate: '2024-05-10', pin: '8888', phone: '0934-567-890', emergencyContact: '林女士 (母親)', emergencyPhone: '0933-333-444', address: '台北市中山區南京東路二段 45 號 2 樓', birthday: '1998-07-30', joinDate: '2024-02-10', leaveEntitled: 3, leaveUsed: 1, note: '兼職，今日壽星！體檢過期禁止排班' },
+      { id: 'E004', name: '張阿強', role: '內場備料廚師', dept: '兼職 (PT)', status: '在職', healthCheckDate: '2025-10-20', pin: '8888', phone: '0945-678-901', emergencyContact: '張大哥 (哥哥)', emergencyPhone: '0944-444-555', address: '桃園市中壢區中華路二段 12 號', birthday: '1995-09-12', joinDate: '2024-05-20', leaveEntitled: 3, leaveUsed: 0, note: '負責桃園央廚調理包排產與備料' },
+      { id: 'E005', name: '黃智勝', role: '主廚師傅', dept: '內場廚務', type: '正職員工', status: '在職', healthCheckDate: '2025-11-01', pin: '8888', phone: '0967-890-123', emergencyContact: '黃太太 (妻子)', emergencyPhone: '0966-666-777', address: '新北市三重區正義北路 50 號', birthday: '1990-12-18', joinDate: '2022-06-01', leaveEntitled: 10, leaveUsed: 5, note: '法式位上私廚與新菜色研發主管' },
+      { id: 'E006', name: '蘇冠勳', role: '活動支援人員', dept: '門市/外場', type: '兼職 (PT)', status: '在職', healthCheckDate: '2026-01-01', pin: '8888', phone: '0988-123-456', emergencyContact: '蘇家屬', emergencyPhone: '0988-654-321', address: '台北市大安區', birthday: '1995-01-01', joinDate: '2024-01-01', leaveEntitled: 3, leaveUsed: 0, note: '調酒與活動支援' }
     ];
 
     const initialAnnouncements = [
@@ -91,11 +101,12 @@
     const todayStr = `${curYear}-${String(curMonth).padStart(2,'0')}-${String(nowToday.getDate()).padStart(2,'0')}`;
 
     const initialTasks = [
-      { id: 1, title: '當日暑期備料與調理包生產', content: '高溫滅菌調理包封口檢測與冷凍庫存盤點', category: '調理包製作', repeat: '單次', assignees: ['王聖銓', '張阿強', '黃智勝'], checklist: [{ item: '高溫滅菌袋盤点', checked: true }, { item: '真空封口機測試', checked: false }], date: todayStr, startTime: '08:30', endTime: '12:00', location: '桃園中央央廚', status: '待處理', completedBy: '' }
+      { id: 1, title: '當日暑期備料與調理包生產', content: '高溫滅菌調理包封口檢測與冷凍庫存盤點', category: '調理包製作', repeat: '單次', assignees: ['王聖銓', '張阿強', '黃智勝'], checklist: [{ item: '高溫滅菌袋盤点', checked: true }, { item: '真空封口機測試', checked: false }], date: todayStr, startTime: '08:30', endTime: '12:00', location: '中央廚房', status: '待處理', completedBy: '', fileUrl: '', fileName: '' }
     ];
 
     const initialClockRecords = [
-      { id: 1, name: '王聖銓', date: todayStr, expected: '09:00', clockIn: '08:52', clockOut: '18:05', hoursWorked: 9.0, otHours: 0, status: '🟢 正常', location: '公司打卡' }
+      { id: 1, name: '王聖銓', date: todayStr, expected: '09:00', clockIn: '08:52', clockOut: '18:05', hoursWorked: 9.0, otHours: 0, status: '🟢 正常', location: '公司打卡' },
+      { id: 2, name: '蘇冠勳', date: todayStr, expected: '09:00', clockIn: '09:01', clockOut: '18:00', hoursWorked: 9.0, otHours: 0, status: '🟢 正常', location: '公司打卡' }
     ];
 
     const windowState = {
@@ -108,14 +119,14 @@
       scheduleYear: curYear,
       scheduleMonth: curMonth,
       selectedTaskDate: todayStr,
-      selectedCardStaff: '王聖銓',
+      selectedCardStaff: JSON.parse(localStorage.getItem('shangyu_loginUser'))?.name || '王聖銓',
       selectedPrintEmpId: 'E001',
       selectedPrintEvalName: '王聖銓',
       selectedAnnualYear: curYear,
       selectedAnnualEmp: '王聖銓',
       selectedAnnFilter: '全部',
       clockMode: 'store',
-      tripReason: '桃園央廚排產',
+      tripReason: '中央廚房排產',
       employees: initialEmployees,
       announcements: initialAnnouncements,
       tasks: initialTasks,
@@ -126,6 +137,27 @@
       activeModal: null,
       modalData: {}
     };
+
+    function getHealthCheckInfo(checkDateStr) {
+      if (!checkDateStr) return { status: '🔴 尚未建檔', isExpired: true, daysLeft: -999 };
+      const checkDate = new Date(checkDateStr);
+      const expireDate = new Date(checkDate);
+      expireDate.setFullYear(expireDate.getFullYear() + 1);
+
+      const today = new Date();
+      today.setHours(0,0,0,0);
+
+      const diffTime = expireDate - today;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      if (diffDays < 0) {
+        return { status: `🔴 體檢已過期 (${Math.abs(diffDays)}天前)`, isExpired: true, daysLeft: diffDays };
+      } else if (diffDays <= 30) {
+        return { status: `🟡 體檢即將到期 (剩${diffDays}天)`, isExpired: false, daysLeft: diffDays, isWarning: true };
+      } else {
+        return { status: `🟢 合格 (效期至 ${expireDate.toISOString().slice(0,10)})`, isExpired: false, daysLeft: diffDays };
+      }
+    }
 
     function showToast(message, type = 'success') {
       const container = document.getElementById('toast-container');
@@ -141,7 +173,6 @@
       }, 3500);
     }
 
-    // 強效雙向即時雲端同步 (使用強制快取繞過機制)
     function initFirebaseSync() {
       if (!db) {
         render();
@@ -149,8 +180,6 @@
       }
       try {
         const docRef = doc(db, 'system', 'mainData');
-        
-        // 進入網頁時立刻強制讀取一次最新雲端資料
         getDoc(docRef).then((docSnap) => {
           if (docSnap.exists()) {
             applyCloudData(docSnap.data());
@@ -159,7 +188,6 @@
           }
         }).catch(() => {});
 
-        // 即時監聽雲端變動
         onSnapshot(docRef, (docSnap) => {
           if (docSnap.exists()) {
             applyCloudData(docSnap.data());
@@ -326,14 +354,15 @@
       if (task.checklist && task.checklist.length > 0) {
         chkText = '\n\n📦 **備料/出勤檢查清單**：\n' + task.checklist.map(c => `${c.checked ? '[✓]' : '[☐]'} ${c.item}`).join('\n');
       }
-      const lineText = `📌 【全錸蒔國際餐飲 - 工作交辦通知】\n\n🔹 任務主題：${task.title}\n🔹 工作分類：${task.category}\n📅 預定日期：${task.date}\n🕒 時間：${task.startTime} ~ ${task.endTime}\n📍 地點：${task.location}\n👥 負責同仁：${task.assignees.join('、')}\n\n📝 工作說明：\n${task.content || '無'}${chkText}\n\n收到請回覆「收到 +1」，謝謝配合！`;
+      let fileText = task.fileUrl ? `\n\n📎 附加檔案：${task.fileName || '查看附件'}` : '';
+      const lineText = `📌 【全錸蒔國際餐飲 - 工作交辦通知】\n\n🔹 任務主題：${task.title}\n🔹 工作分類：${task.category}\n📅 預定日期：${task.date}\n🕒 時間：${task.startTime} ~ ${task.endTime}\n📍 地點：${task.location}\n👥 負責同仁：${task.assignees.join('、')}\n\n📝 工作說明：\n${task.content || '無'}${chkText}${fileText}\n\n收到請回覆「收到 +1」，謝謝配合！`;
       navigator.clipboard.writeText(lineText).then(() => {
         showToast(`💬 已成功複製【${task.title}】交辦訊息！`);
       });
     };
 
-    window.copyHealthCheckReminderLineText = (empName) => {
-      const text = `【全錸蒔國際餐飲 - 人事溫馨提醒】\n\n${empName} 同仁您好：\n提醒您，依食品安全衛生管理法與公司規範，餐飲從業人員健康檢查報告已到期/即將到期。\n為保障您的排班權益與顧客用餐安全，請於近期前往合格醫療院所完成體檢，並將合格報告交予 HR / 店長備查，謝謝您的配合！`;
+    window.copyHealthCheckReminderLineText = (empName, expireDateStr) => {
+      const text = `【全錸蒔國際餐飲 - 人事健康檢查溫馨提醒】\n\n${empName} 同仁您好：\n提醒您，依食品安全衛生管理法與公司規範，您的餐飲從業人員健康檢查效期至【${expireDateStr}】將屆滿/已過期。\n為保障您的排班權益與顧客用餐安全，請於近期前往合格醫療院所完成體檢，並將合格報告交予 HR / 店長備查，謝謝您的配合！`;
       navigator.clipboard.writeText(text).then(() => {
         showToast(`📋 已成功複製【${empName}】體檢催辦訊息！`);
       });
@@ -377,6 +406,20 @@
         const reader = new FileReader();
         reader.onload = (uploadEvent) => {
           windowState.modalData.imageUrl = uploadEvent.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+    };
+
+    // 新增：處理工作排程任務檔案上傳 (圖片或 PDF)
+    window.handleTaskFileUploadInModal = (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (uploadEvent) => {
+          windowState.modalData.fileUrl = uploadEvent.target.result;
+          windowState.modalData.fileName = file.name;
+          showToast(`📎 檔案【${file.name}】已成功載入！`);
         };
         reader.readAsDataURL(file);
       }
@@ -438,6 +481,43 @@
       showToast(`🎉 【${windowState.currentUser.name}】打卡成功！(工時：${hoursWorked}h)`);
     };
 
+    window.openEditClockModal = (recordId) => {
+      if (!windowState.isAdmin) return showToast('🔒 請先解鎖管理員權限才能修改打卡！', 'warning');
+      const rec = windowState.clockRecords.find(c => c.id === recordId);
+      if (!rec) return;
+      windowState.modalData = { ...rec };
+      windowState.activeModal = 'clockModal';
+      render();
+    };
+
+    window.handleSaveClockSubmit = (e) => {
+      e.preventDefault();
+      const m = windowState.modalData;
+      const inTime = document.getElementById('edit-clock-in').value;
+      const outTime = document.getElementById('edit-clock-out').value;
+      const loc = document.getElementById('edit-clock-loc').value;
+
+      let hoursWorked = Number(m.hoursWorked) || 0.0;
+      let otHours = Number(m.otHours) || 0.0;
+
+      if (inTime && outTime && inTime !== '--:--' && outTime !== '--:--') {
+        const [inH, inM] = inTime.split(':').map(Number);
+        const [outH, outM] = outTime.split(':').map(Number);
+        const diffMin = Math.max(0, (outH * 60 + outM) - (inH * 60 + inM));
+        hoursWorked = Math.round((diffMin / 60) * 2) / 2;
+        if (hoursWorked > 9.0) otHours = hoursWorked - 9.0;
+      }
+
+      windowState.clockRecords = windowState.clockRecords.map(c => c.id === m.id ? {
+        ...c, clockIn: inTime, clockOut: outTime, location: loc, hoursWorked, otHours,
+        status: (inTime > '09:00' ? '⚠️ 遲到' : '🟢 正常')
+      } : c);
+
+      saveStateToCloud();
+      windowState.activeModal = null;
+      showToast('✅ 打卡記錄已成功修改並同步至雲端！');
+    };
+
     window.handleAdminLoginSubmit = (e) => {
       e.preventDefault();
       const pin = document.getElementById('admin-pin-input').value;
@@ -458,7 +538,7 @@
 
     window.openCreateTaskModal = (dateStr) => {
       const targetDate = dateStr || windowState.selectedTaskDate || todayStr;
-      windowState.modalData = { date: targetDate, title: '', category: '調理包製作', repeat: '單次', assignees: [windowState.employees.filter(e => e.status !== '離職')[0]?.name || '王聖銓'], startTime: '09:00', endTime: '12:00', location: '台北總店', content: '' };
+      windowState.modalData = { date: targetDate, title: '', category: '調理包製作', repeat: '單次', assignees: [windowState.employees.filter(e => e.status !== '離職')[0]?.name || '王聖銓'], startTime: '09:00', endTime: '12:00', location: '中央廚房', content: '', checklist: [], fileUrl: '', fileName: '' };
       windowState.activeModal = 'taskModal';
       render();
     };
@@ -472,18 +552,39 @@
       }
     };
 
+    window.syncModalDataFromInputs = () => {
+      const titleEl = document.getElementById('task-title');
+      const catEl = document.getElementById('task-category');
+      const repEl = document.getElementById('task-repeat');
+      const dateEl = document.getElementById('task-date');
+      const startEl = document.getElementById('task-start');
+      const endEl = document.getElementById('task-end');
+      const locEl = document.getElementById('task-location');
+      const contentEl = document.getElementById('task-content');
+
+      if (titleEl) windowState.modalData.title = titleEl.value;
+      if (catEl) windowState.modalData.category = catEl.value;
+      if (repEl) windowState.modalData.repeat = repEl.value;
+      if (dateEl) windowState.modalData.date = dateEl.value;
+      if (startEl) windowState.modalData.startTime = startEl.value;
+      if (endEl) windowState.modalData.endTime = endEl.value;
+      if (locEl) windowState.modalData.location = locEl.value;
+      if (contentEl) windowState.modalData.content = contentEl.value;
+    };
+
     window.addModalChecklistItem = () => {
+      window.syncModalDataFromInputs();
       const input = document.getElementById('new-chk-item-input');
       const val = input ? input.value.trim() : '';
       if (val) {
         if (!windowState.modalData.checklist) windowState.modalData.checklist = [];
         windowState.modalData.checklist.push({ item: val, checked: false });
-        input.value = '';
         render();
       }
     };
 
     window.removeModalChecklistItem = (idx) => {
+      window.syncModalDataFromInputs();
       if (windowState.modalData.checklist) {
         windowState.modalData.checklist.splice(idx, 1);
         render();
@@ -497,7 +598,18 @@
       render();
     };
 
+    window.deleteAnnouncement = (annId) => {
+      if (!windowState.isAdmin) return showToast('🔒 請先解鎖管理員權限才能刪除公告！', 'warning');
+      if (confirm('確定要刪除這則公告嗎？')) {
+        windowState.announcements = windowState.announcements.filter(a => a.id !== annId);
+        saveStateToCloud();
+        showToast('🗑️ 公告已成功刪除！');
+        render();
+      }
+    };
+
     window.toggleAssigneeInModal = (name) => {
+      window.syncModalDataFromInputs();
       const list = windowState.modalData.assignees || [];
       if (list.includes(name)) {
         if (list.length > 1) windowState.modalData.assignees = list.filter(a => a !== name);
@@ -519,7 +631,9 @@
         endTime: document.getElementById('task-end').value,
         location: document.getElementById('task-location').value,
         assignees: windowState.modalData.assignees || [windowState.employees[0].name],
-        checklist: windowState.modalData.checklist || []
+        checklist: windowState.modalData.checklist || [],
+        fileUrl: windowState.modalData.fileUrl || '',
+        fileName: windowState.modalData.fileName || ''
       };
 
       if (windowState.modalData.id) {
@@ -530,10 +644,11 @@
       saveStateToCloud();
       windowState.activeModal = null;
       showToast('✅ 工作行程已儲存！');
+      render();
     };
 
     window.openCreateEmpModal = () => {
-      windowState.modalData = { id: `E0${windowState.employees.length + 1}`, name: '', role: '門市服務員', type: '正職員工', status: '在職', healthCheckStatus: '🟢 合格', pin: '8888', phone: '', address: '', leaveEntitled: 7, leaveUsed: 0, note: '' };
+      windowState.modalData = { id: `E0${windowState.employees.length + 1}`, name: '', role: '門市服務員', type: '正職員工', status: '在職', healthCheckDate: todayStr, pin: '8888', phone: '', address: '', leaveEntitled: 7, leaveUsed: 0, note: '' };
       windowState.activeModal = 'empModal';
       render();
     };
@@ -555,7 +670,7 @@
         role: document.getElementById('emp-role').value,
         type: document.getElementById('emp-type').value,
         status: document.getElementById('emp-status').value,
-        healthCheckStatus: document.getElementById('emp-health-status').value,
+        healthCheckDate: document.getElementById('emp-health-date').value,
         birthday: document.getElementById('emp-birthday').value,
         joinDate: document.getElementById('emp-joindate').value,
         phone: document.getElementById('emp-phone').value,
@@ -582,7 +697,7 @@
     };
 
     window.openEditEvalModal = (empName) => {
-      const customEval = windowState.evaluations[empName] || { efficiencyScore: 5, tripCoopScore: 5, sanitationScore: 5, knowledgeScore: 5, comment: '' };
+      const customEval = windowState.evaluations[empName] || { efficiencyScore: 3, tripCoopScore: 3, sanitationScore: 3, knowledgeScore: 3, comment: '' };
       windowState.modalData = { name: empName, ...customEval };
       windowState.activeModal = 'evalModal';
       render();
@@ -617,8 +732,8 @@
         const lateCount = empClocks.filter(c => c.status.includes('遲到')).length;
 
         const customEval = windowState.evaluations[emp.name] || {
-          efficiencyScore: 5, tripCoopScore: 5, sanitationScore: 5, knowledgeScore: 5,
-          comment: '工作表現優異。'
+          efficiencyScore: 3, tripCoopScore: 3, sanitationScore: 3, knowledgeScore: 3,
+          comment: '工作表現正常。'
         };
 
         const calculatedScore = Math.min(100, Math.max(0,
@@ -658,18 +773,23 @@
       showToast('✅ 成功發布新公告！');
     };
 
-    window.rotateShift = (empName, dayIdx, currentShift) => {
-      if (!windowState.isAdmin) return showToast('🔒 請先解鎖管理員權限，請點右上方解鎖', 'warning');
+    // 修復：排班點擊變更時採用區域局部更新，不造成頁面跳動或回彈
+    window.handleShiftSelectChange = (empName, dayIdx, selectElement) => {
+      if (!windowState.isAdmin) {
+        alert('🔒 請先解鎖管理員權限才能修改班表！');
+        selectElement.value = selectElement.defaultValue;
+        return;
+      }
       
       const emp = windowState.employees.find(e => e.name === empName);
-      if (emp && emp.healthCheckStatus === '🔴 體檢已過期') {
-        return showToast(`🚨 警告：【${empName}】體檢已過期！依規禁止排班上班，請先更新體檢紀錄。`, 'error');
+      const hcInfo = getHealthCheckInfo(emp?.healthCheckDate);
+      if (emp && hcInfo.isExpired) {
+        alert(`🚨 警告：【${empName}】體檢已過期！依規禁止排班上班。`);
+        selectElement.value = selectElement.defaultValue;
+        return;
       }
 
-      const shiftOptions = ['上班', '休假', '加班', '特半', '特一', '事假', '病假', '陪產', '婚假', '喪假'];
-      const nextPos = (shiftOptions.indexOf(currentShift) + 1) % shiftOptions.length;
-      const nextShift = shiftOptions[nextPos];
-
+      const nextShift = selectElement.value;
       const key = `${windowState.scheduleYear}-${windowState.scheduleMonth}-${empName}`;
       const { days } = getMonthDaysData(windowState.scheduleYear, windowState.scheduleMonth);
       const existingShifts = windowState.schedules[key] || days.map(m => (m.holidayName || m.isWeekend ? '休假' : '上班'));
@@ -678,6 +798,12 @@
       updated[dayIdx] = nextShift;
       windowState.schedules[key] = updated;
       saveStateToCloud();
+      showToast(`⚡ 已更新【${empName}】${windowState.scheduleMonth}/${days[dayIdx].day} 班別為：${nextShift}`);
+    };
+
+    window.handleAttendanceStaffChange = (selectEl) => {
+      windowState.selectedCardStaff = selectEl.value;
+      render();
     };
 
     window.initiateCompleteTask = (id) => {
@@ -691,9 +817,56 @@
         } else {
           task.status = '已完成';
           task.completedBy = windowState.currentUser.name;
+
+          if (task.repeat && task.repeat !== '單次') {
+            const currDate = new Date(task.date);
+            if (task.repeat === '每日') {
+              currDate.setDate(currDate.getDate() + 1);
+            } else if (task.repeat === '每週') {
+              currDate.setDate(currDate.getDate() + 7);
+            } else if (task.repeat === '每月') {
+              currDate.setMonth(currDate.getMonth() + 1);
+            } else if (task.repeat === '每兩個月') {
+              currDate.setMonth(currDate.getMonth() + 2);
+            } else if (task.repeat === '每三個月') {
+              currDate.setMonth(currDate.getMonth() + 3);
+            } else if (task.repeat === '每半年') {
+              currDate.setMonth(currDate.getMonth() + 6);
+            } else if (task.repeat === '每年') {
+              currDate.setFullYear(currDate.getFullYear() + 1);
+            }
+
+            const nextDateStr = currDate.toISOString().slice(0, 10);
+            const duplicatedChecklist = (task.checklist || []).map(c => ({ ...c, checked: false }));
+
+            const exists = windowState.tasks.some(t => t.title === task.title && t.date === nextDateStr);
+            if (!exists) {
+              windowState.tasks.unshift({
+                id: Date.now(),
+                title: task.title,
+                category: task.category,
+                repeat: task.repeat,
+                content: task.content,
+                date: nextDateStr,
+                startTime: task.startTime,
+                endTime: task.endTime,
+                location: task.location,
+                assignees: [...task.assignees],
+                checklist: duplicatedChecklist,
+                status: '待處理',
+                completedBy: '',
+                fileUrl: task.fileUrl || '',
+                fileName: task.fileName || ''
+              });
+              showToast(`🔁 任務已完成，並自動幫您生成下一週期 (${nextDateStr}) 的新任務！`);
+            }
+          } else {
+            showToast(`✅ 【${windowState.currentUser.name}】已完成任務！考核自動加分！`);
+          }
+
           saveStateToCloud();
-          showToast(`✅ 【${windowState.currentUser.name}】已完成任務！考核自動加分！`);
         }
+        render();
       }
     };
 
@@ -702,6 +875,7 @@
       if (task && task.checklist && task.checklist[chkIdx]) {
         task.checklist[chkIdx].checked = !task.checklist[chkIdx].checked;
         saveStateToCloud();
+        render();
       }
     };
 
@@ -725,22 +899,25 @@
     };
 
     window.autoFillDefaultSchedule = () => {
-      if (!windowState.isAdmin) return showToast('🔒 請先解鎖管理員權限！', 'warning');
+      if (!windowState.isAdmin) return alert('🔒 請先解鎖管理員權限！');
       const { days } = getMonthDaysData(windowState.scheduleYear, windowState.scheduleMonth);
 
       windowState.employees.forEach(emp => {
-        if (emp.status !== '離職' && emp.healthCheckStatus !== '🔴 體檢已過期') {
+        const hcInfo = getHealthCheckInfo(emp.healthCheckDate);
+        if (emp.status !== '離職' && !hcInfo.isExpired) {
           const key = `${windowState.scheduleYear}-${windowState.scheduleMonth}-${emp.name}`;
-          windowState.schedules[key] = days.map(m => (m.holidayName || m.isWeekend ? '休假' : '上班'));
+          windowState.schedules[key] = days.map(m => (m.isWeekend || m.isHoliday ? '休假' : '上班'));
         }
       });
       saveStateToCloud();
       showToast('⚡ 全店已同步帶入標準班表（國定假日與週末自動顯示休假）！');
+      render();
     };
 
     window.printSingleEmployeeRoster = (empId) => {
       const printEmp = windowState.employees.find(e => e.id === empId);
       if (!printEmp) return;
+      const hcInfo = getHealthCheckInfo(printEmp.healthCheckDate);
 
       const printArea = document.getElementById('print-modal-area');
       printArea.innerHTML = `
@@ -749,7 +926,7 @@
           <table class="w-full text-xs border-collapse border border-slate-400">
             <tbody>
               <tr><td class="p-3 bg-slate-100 font-bold border border-slate-400">同仁姓名</td><td class="p-3 border border-slate-400 font-bold">${printEmp.name}</td><td class="p-3 bg-slate-100 font-bold border border-slate-400">員工工號</td><td class="p-3 border border-slate-400 font-mono">${printEmp.id}</td></tr>
-              <tr><td class="p-3 bg-slate-100 font-bold border border-slate-400">職稱崗位</td><td class="p-3 border border-slate-400">${printEmp.role}</td><td class="p-3 bg-slate-100 font-bold border border-slate-400">體檢狀態</td><td class="p-3 border border-slate-400 font-bold">${printEmp.healthCheckStatus || '🟢 合格'}</td></tr>
+              <tr><td class="p-3 bg-slate-100 font-bold border border-slate-400">職稱崗位</td><td class="p-3 border border-slate-400">${printEmp.role}</td><td class="p-3 bg-slate-100 font-bold border border-slate-400">體檢狀態</td><td class="p-3 border border-slate-400 font-bold">${hcInfo.status} (體檢日期: ${printEmp.healthCheckDate || '未填'})</td></tr>
               <tr><td class="p-3 bg-slate-100 font-bold border border-slate-400">🎂 生日</td><td class="p-3 border border-slate-400">${printEmp.birthday}</td><td class="p-3 bg-slate-100 font-bold border border-slate-400">📅 到職日</td><td class="p-3 border border-slate-400">${printEmp.joinDate}</td></tr>
               <tr><td class="p-3 bg-slate-100 font-bold border border-slate-400">📞 電話</td><td class="p-3 border border-slate-400 font-mono">${printEmp.phone}</td><td class="p-3 bg-slate-100 font-bold border border-slate-400">緊急聯絡人</td><td class="p-3 border border-slate-400">${printEmp.emergencyContact} (${printEmp.emergencyPhone})</td></tr>
               <tr><td class="p-3 bg-slate-100 font-bold border border-slate-400">🏠 居住地址</td><td colSpan="3" class="p-3 border border-slate-400">${printEmp.address}</td></tr>
@@ -765,7 +942,7 @@
 
     window.printSingleEmployeeEval = (empName) => {
       const emp = windowState.employees.find(e => e.name === empName);
-      const customEval = windowState.evaluations[empName] || { efficiencyScore: 5, tripCoopScore: 5, sanitationScore: 5, knowledgeScore: 5, comment: '工作表現優異。' };
+      const customEval = windowState.evaluations[empName] || { efficiencyScore: 3, tripCoopScore: 3, sanitationScore: 3, knowledgeScore: 3, comment: '工作表現正常。' };
       const score = 70 + (customEval.efficiencyScore * 2) + (customEval.tripCoopScore * 2) + (customEval.sanitationScore * 2) + (customEval.knowledgeScore * 2);
 
       const printArea = document.getElementById('print-modal-area');
@@ -794,7 +971,6 @@
     window.printAnnualEvalReport = () => {
       const year = windowState.selectedAnnualYear;
       const empName = windowState.selectedAnnualEmp;
-      const emp = windowState.employees.find(e => e.name === empName);
       const archives = windowState.evalArchives || {};
 
       const printArea = document.getElementById('print-modal-area');
@@ -838,33 +1014,76 @@
     };
 
     window.printAttendanceRecord = () => {
+      const selectEl = document.getElementById('attendance-staff-select');
+      if (selectEl) windowState.selectedCardStaff = selectEl.value;
       const targetEmp = windowState.employees.find(e => e.name === windowState.selectedCardStaff) || windowState.employees[0];
       const { days } = getMonthDaysData(windowState.scheduleYear, windowState.scheduleMonth);
       
+      const empClocks = windowState.clockRecords.filter(c => c.name === targetEmp.name && c.date.startsWith(`${windowState.scheduleYear}-${String(windowState.scheduleMonth).padStart(2,'0')}`));
+      const totalWorkH = empClocks.reduce((acc, c) => acc + (c.hoursWorked || 0), 0).toFixed(1);
+      const totalOTH = empClocks.reduce((acc, c) => acc + (c.otHours || 0), 0).toFixed(1);
+      const lateCount = empClocks.filter(c => c.status.includes('遲到')).length;
+
       const printArea = document.getElementById('print-modal-area');
       printArea.innerHTML = `
-        <div class="p-8 space-y-4">
-          <h1 class="text-xl font-black text-center border-b-2 border-slate-900 pb-2">全錸蒔國際餐飲 - 【${targetEmp.name}】${windowState.scheduleYear}年${windowState.scheduleMonth}月考勤打卡紀錄表</h1>
-          <table class="w-full text-xs text-center border-collapse border border-slate-400">
-            <thead class="bg-slate-100">
-              <tr><th class="p-2 border border-slate-400">日期</th><th class="p-2 border border-slate-400">預定班別</th><th class="p-2 border border-slate-400">上班刷卡</th><th class="p-2 border border-slate-400">下班刷卡</th><th class="p-2 border border-slate-400">實算工時/加班</th><th class="p-2 border border-slate-400">打卡地點</th></tr>
+        <div class="p-4 space-y-3 bg-white text-slate-900 max-w-[210mm] mx-auto text-[11px] leading-tight">
+          <div class="text-center border-b-2 border-slate-900 pb-2 space-y-0.5">
+            <h1 class="text-lg font-black tracking-wider">全錸蒔國際餐飲 員工每月考勤打卡與出勤簽核表</h1>
+            <p class="text-[10px] text-slate-600">統計月份：<strong class="font-mono text-slate-900">${windowState.scheduleYear} 年 ${windowState.scheduleMonth} 月</strong> · 列印日期：${todayStr}</p>
+          </div>
+
+          <div class="grid grid-cols-4 gap-2 bg-slate-50 p-2 rounded-lg border border-slate-300 font-bold text-[11px]">
+            <div>員工工號：<span class="font-mono">${targetEmp.id}</span></div>
+            <div>同仁姓名：<span class="text-indigo-950 font-black">${targetEmp.name}</span></div>
+            <div>職稱崗位：<span>${targetEmp.role}</span></div>
+            <div>雇用類別：<span>${targetEmp.type}</span></div>
+          </div>
+
+          <table class="w-full text-[10px] text-center border-collapse border border-slate-400">
+            <thead class="bg-slate-100 font-bold">
+              <tr>
+                <th class="p-1 border border-slate-400 w-14">日期</th>
+                <th class="p-1 border border-slate-400 w-16">預定班別</th>
+                <th class="p-1 border border-slate-400 w-20">☀️ 上班刷卡</th>
+                <th class="p-1 border border-slate-400 w-20">🌙 下班刷卡</th>
+                <th class="p-1 border border-slate-400 w-20">實算工時</th>
+                <th class="p-1 border border-slate-400 text-left">打卡地點 / 備註</th>
+              </tr>
             </thead>
             <tbody>
               ${days.map(m => {
                 const rec = windowState.clockRecords.find(c => c.name === targetEmp.name && c.date === m.dateStr);
                 return `
-                  <tr>
-                    <td class="p-2 border border-slate-400 font-mono">${windowState.scheduleMonth}/${m.day}</td>
-                    <td class="p-2 border border-slate-400">${getStaffShiftOnDate(targetEmp.name, m.dateStr)}</td>
-                    <td class="p-2 border border-slate-400 font-mono">${rec ? rec.clockIn : '--:--'}</td>
-                    <td class="p-2 border border-slate-400 font-mono">${rec ? rec.clockOut : '--:--'}</td>
-                    <td class="p-2 border border-slate-400 font-mono">${rec ? `${rec.hoursWorked || 0}h (${rec.otHours || 0}h加班)` : '-'}</td>
-                    <td class="p-2 border border-slate-400 text-left">${rec ? rec.location : '-'}</td>
+                  <tr class="${m.isWeekend || m.isHoliday ? 'bg-rose-50/30' : ''}">
+                    <td class="p-1 border border-slate-400 font-mono font-bold">${windowState.scheduleMonth}/${m.day} ${m.weekDay}</td>
+                    <td class="p-1 border border-slate-400">${getStaffShiftOnDate(targetEmp.name, m.dateStr)}</td>
+                    <td class="p-1 border border-slate-400 font-mono">${rec ? rec.clockIn : '--:--'}</td>
+                    <td class="p-1 border border-slate-400 font-mono">${rec ? rec.clockOut : '--:--'}</td>
+                    <td class="p-1 border border-slate-400 font-mono">${rec ? `${rec.hoursWorked || 0}h` : '-'}</td>
+                    <td class="p-1 border border-slate-400 text-left truncate">${rec ? rec.location : '-'}</td>
                   </tr>
                 `;
               }).join('')}
             </tbody>
           </table>
+
+          <div class="grid grid-cols-3 gap-2 bg-slate-50 p-2 rounded-lg border border-slate-300 font-bold text-center text-[11px]">
+            <div>本月總出勤工時：<span class="font-mono text-indigo-700">${totalWorkH} 小時</span></div>
+            <div>本月累計加班：<span class="font-mono text-amber-700">${totalOTH} 小時</span></div>
+            <div>本月遲到次數：<span class="font-mono text-rose-600">${lateCount} 次</span></div>
+          </div>
+
+          <div class="grid grid-cols-3 gap-6 pt-6 text-center font-bold text-[11px]">
+            <div class="border-t-2 border-slate-900 pt-1.5">
+              <p>員工親簽 (Signature)</p>
+            </div>
+            <div class="border-t-2 border-slate-900 pt-1.5">
+              <p>部門主管 / 店長覆核 (Manager)</p>
+            </div>
+            <div class="border-t-2 border-slate-900 pt-1.5">
+              <p>總經理 / 人事核准 (Director)</p>
+            </div>
+          </div>
         </div>
       `;
       window.print();
@@ -1017,10 +1236,13 @@
           }
         });
 
+        const hcInfo = getHealthCheckInfo(emp.healthCheckDate);
+
         return {
           empName: emp.name,
           role: emp.role,
-          healthCheckStatus: emp.healthCheckStatus,
+          healthCheckStatus: hcInfo.status,
+          isHealthExpired: hcInfo.isExpired,
           shifts,
           requiredOffDays: totalRedDays,
           scheduledOffCount,
@@ -1073,7 +1295,10 @@
     }
 
     function renderHeader() {
-      const expiredEmps = windowState.employees.filter(e => e.healthCheckStatus === '🔴 體檢已過期');
+      const warningOrExpiredEmps = windowState.employees.filter(e => {
+        const info = getHealthCheckInfo(e.healthCheckDate);
+        return info.isExpired || info.isWarning;
+      });
 
       return `
         <header class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-4 sm:p-5 shadow-lg relative no-print">
@@ -1140,11 +1365,11 @@
               }</span>
             </div>
             <div class="flex items-center space-x-2">
-              <span class="font-bold text-rose-300">🚨 體檢到期追蹤：</span>
-              <span>${expiredEmps.length > 0 ? expiredEmps.map(e => `${e.name} (過期禁止排班)`).join('、') : '全體同仁體檢皆合格'}</span>
-              ${expiredEmps.length > 0 ? `
-                <button onclick="copyHealthCheckReminderLineText('${expiredEmps[0].name}')" class="bg-rose-600 hover:bg-rose-700 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow cursor-pointer ml-1">
-                  📋 複製 LINE 催辦通知
+              <span class="font-bold text-rose-300">🚨 體檢到期提醒：</span>
+              <span>${warningOrExpiredEmps.length > 0 ? warningOrExpiredEmps.map(e => `${e.name} (${getHealthCheckInfo(e.healthCheckDate).status})`).join('、') : '全體同仁體檢皆在有效期內'}</span>
+              ${warningOrExpiredEmps.length > 0 ? `
+                <button onclick="copyHealthCheckReminderLineText('${warningOrExpiredEmps[0].name}', '${warningOrExpiredEmps[0].healthCheckDate}')" class="bg-amber-500 hover:bg-amber-600 text-slate-950 px-2.5 py-0.5 rounded text-[10px] font-black shadow cursor-pointer ml-1">
+                  📋 複製 LINE 提醒
                 </button>
               ` : ''}
             </div>
@@ -1222,8 +1447,15 @@
             ${sorted.map(ann => `
               <div class="bg-white p-5 rounded-2xl border shadow-xs space-y-2 relative ${ann.isPinned ? 'border-amber-400 bg-amber-50/20' : 'border-slate-200'}">
                 <div class="flex justify-between items-center">
-                  <span class="px-2.5 py-0.5 font-extrabold text-[11px] rounded-lg border bg-amber-100 text-amber-900 border-amber-300">${ann.level || '🟠 重要'}</span>
-                  <span class="text-xs text-indigo-900 font-extrabold">🏢 ${ann.author}</span>
+                  <div class="flex items-center space-x-2">
+                    <span class="px-2.5 py-0.5 font-extrabold text-[11px] rounded-lg border bg-amber-100 text-amber-900 border-amber-300">${ann.level || '🟠 重要'}</span>
+                    <span class="text-xs text-indigo-900 font-extrabold">🏢 ${ann.author}</span>
+                  </div>
+                  ${windowState.isAdmin ? `
+                    <button onclick="deleteAnnouncement(${ann.id})" class="bg-rose-100 hover:bg-rose-200 text-rose-700 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer">
+                      🗑️ 刪除公告
+                    </button>
+                  ` : ''}
                 </div>
                 <h3 class="font-bold text-slate-900 text-base">${ann.title}</h3>
                 <p class="text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-100 leading-relaxed">${ann.content}</p>
@@ -1271,8 +1503,15 @@
                         </button>
                       </div>
                     </div>
-                    <h4 class="font-black text-amber-300 text-sm">${t.title}</h4>
+                    <h4 class="font-black text-amber-300 text-sm cursor-pointer hover:underline" ondblclick="openEditTaskModal(${t.id})" title="雙擊編輯此活動">${t.title} ✏️</h4>
                     <p class="text-slate-200 bg-black/30 p-2 rounded-lg border border-white/10">${t.content}</p>
+
+                    ${t.fileUrl ? `
+                      <div class="bg-black/20 p-2.5 rounded-lg border border-indigo-300/30 flex items-center justify-between">
+                        <span class="text-xs text-amber-200 font-bold">📎 附件：${t.fileName || '查看檔案'}</span>
+                        <a href="${t.fileUrl}" target="_blank" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded font-bold text-[10px]">開啟/下載檔案</a>
+                      </div>
+                    ` : ''}
 
                     ${t.checklist && t.checklist.length > 0 ? `
                       <div class="bg-black/20 p-2 rounded-lg border border-amber-300/30 space-y-1">
@@ -1301,7 +1540,7 @@
           <div class="bg-white p-4 rounded-2xl border shadow-xs space-y-3 no-print">
             <div class="flex justify-between items-center border-b pb-2">
               <div>
-                <h3 class="font-extrabold text-slate-900 text-sm">🗓️ 月曆總覽 (自動顯示週末與國定假日/補假原因)</h3>
+                <h3 class="font-extrabold text-slate-900 text-sm">🗓️ 月曆總覽 (單擊選定日期，雙擊格子新增行程，雙擊活動項目修改)</h3>
                 <p class="text-[10px] text-slate-500">目前檢視：<strong class="text-indigo-600 font-mono font-black">${windowState.selectedTaskDate}</strong></p>
               </div>
               <div class="flex items-center space-x-1.5">
@@ -1310,7 +1549,7 @@
                 <span class="font-black text-indigo-900 text-xs px-1 font-mono">${windowState.scheduleYear}/${windowState.scheduleMonth}</span>
                 <button onclick="shiftMonth(1)" class="px-2 py-1 bg-slate-100 rounded text-xs font-bold">下個月 ›</button>
                 <button onclick="openCreateTaskModal('${windowState.selectedTaskDate}')" class="bg-indigo-600 text-white px-3 py-1 rounded-xl font-bold text-xs ml-2 cursor-pointer">
-                  + 新增該日行程
+                  + 新增行程
                 </button>
               </div>
             </div>
@@ -1324,16 +1563,18 @@
                 return `
                   <div
                     onclick="selectCalendarDate('${m.dateStr}')"
-                    class="min-h-[85px] p-1.5 rounded-xl border text-left cursor-pointer flex flex-col justify-between transition-all ${
-                      isSelected ? 'border-indigo-600 ring-2 ring-indigo-500 bg-indigo-50/70 shadow-md scale-[1.02]' : (m.isWeekend || m.isHoliday ? 'bg-rose-50/50 border-rose-200' : 'bg-white border-slate-200 hover:border-indigo-300')
+                    ondblclick="openCreateTaskModal('${m.dateStr}');"
+                    class="min-h-[85px] p-1.5 rounded-xl border text-left cursor-pointer flex flex-col justify-between transition-all group ${
+                      isSelected ? 'border-indigo-600 ring-2 ring-indigo-500 bg-indigo-50/70 shadow-md scale-[1.02]' : (m.isWeekend || m.isHoliday ? 'bg-rose-50/50 border-rose-200 hover:bg-rose-100/60' : 'bg-white border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/30')
                     }"
+                    title="單擊選定日期，雙擊新增【${m.dateStr}】行程"
                   >
                     <div class="flex justify-between items-center border-b pb-0.5">
-                      <span class="text-[11px] font-mono font-black ${m.isWeekend || m.isHoliday ? 'text-rose-600' : 'text-slate-800'}">${m.day}日</span>
+                      <span class="text-[11px] font-mono font-black ${m.isWeekend || m.isHoliday ? 'text-rose-600' : 'text-slate-800'}">${m.day}日 <span class="text-[9px] text-indigo-600 opacity-0 group-hover:opacity-100">雙擊+</span></span>
                       ${m.holidayName ? `<span class="text-[9px] bg-rose-600 text-white px-1 rounded font-black">${m.holidayName}</span>` : ''}
                     </div>
                     <div class="space-y-1 my-1 flex-1 overflow-y-auto max-h-[45px]">
-                      ${dayTaskList.map(t => `<div class="text-[9px] p-0.5 rounded truncate font-bold ${t.status === '已完成' ? 'bg-emerald-100 text-emerald-900' : 'bg-slate-100 text-indigo-900'}">${t.title}</div>`).join('')}
+                      ${dayTaskList.map(t => `<div ondblclick="event.stopPropagation(); openEditTaskModal(${t.id});" class="text-[9px] p-0.5 rounded truncate font-bold hover:underline ${t.status === '已完成' ? 'bg-emerald-100 text-emerald-900' : 'bg-slate-100 text-indigo-900'}" title="雙擊編輯此活動">${t.title}</div>`).join('')}
                     </div>
                   </div>
                 `;
@@ -1343,7 +1584,7 @@
 
           <div class="bg-white p-5 rounded-2xl border border-indigo-200 shadow-md space-y-3">
             <div class="flex justify-between items-center border-b pb-3">
-              <h3 class="font-black text-slate-900 text-base">📅【${windowState.selectedTaskDate}】選定日期工作行程與派工 (依時間排序)</h3>
+              <h3 class="font-black text-slate-900 text-base">📅【${windowState.selectedTaskDate}】選定日期工作行程與派工 (雙擊下方活動卡片即可修改)</h3>
               <button onclick="openCreateTaskModal('${windowState.selectedTaskDate}')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-xl font-bold text-xs cursor-pointer no-print">
                 + 為【${windowState.selectedTaskDate}】新增行程
               </button>
@@ -1353,7 +1594,7 @@
               ${selectedTaskList.map(t => {
                 const offAssignees = t.assignees.filter(name => ['休假', '事假', '病假', '陪產', '婚假', '喪假', '特一'].includes(getStaffShiftOnDate(name, t.date)));
                 return `
-                  <div class="p-4 rounded-2xl border text-xs space-y-2 bg-slate-50/50 border-slate-200 shadow-xs">
+                  <div ondblclick="openEditTaskModal(${t.id})" class="p-4 rounded-2xl border text-xs space-y-2 bg-slate-50/70 border-slate-200 shadow-xs cursor-pointer hover:border-indigo-500 hover:bg-indigo-50/20 transition-all" title="雙擊修改此活動">
                     <div class="flex justify-between items-start">
                       <div class="flex items-center space-x-2">
                         <span class="px-2.5 py-0.5 bg-indigo-600 text-white font-extrabold rounded-lg">${t.category}</span>
@@ -1361,20 +1602,27 @@
                         <span class="text-slate-500 font-mono font-bold">🕒 ${t.startTime} ~ ${t.endTime}</span>
                         <span class="text-slate-600 font-bold">📍 ${t.location}</span>
                       </div>
-                      <div class="flex items-center space-x-1 no-print">
+                      <div class="flex items-center space-x-1 no-print" onclick="event.stopPropagation()">
                         <button onclick="copyTaskLineText(${t.id})" class="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded text-[11px] shadow cursor-pointer">💬 複製 LINE 交辦</button>
-                        <button onclick="openEditTaskModal(${t.id})" class="px-2 py-1 bg-slate-200 rounded text-[11px] font-bold cursor-pointer">✏️ 編輯</button>
+                        <button onclick="openEditTaskModal(${t.id})" class="px-2 py-1 bg-slate-200 hover:bg-slate-300 rounded text-[11px] font-bold cursor-pointer">✏️ 編輯</button>
                         <button onclick="deleteTask(${t.id})" class="px-2 py-1 bg-rose-100 text-rose-700 rounded text-[11px] font-bold cursor-pointer">🗑️ 刪除</button>
                         <button onclick="initiateCompleteTask(${t.id})" class="px-2.5 py-1 rounded font-bold cursor-pointer ${t.status === '已完成' ? 'bg-emerald-600 text-white' : 'bg-amber-400 text-slate-950'}">
                           ${t.status === '已完成' ? `✅ 已完成 (${t.completedBy})` : '⏳ 點擊完成'}
                         </button>
                       </div>
                     </div>
-                    <h4 class="font-extrabold text-slate-900 text-base">${t.title}</h4>
+                    <h4 class="font-extrabold text-slate-900 text-base">${t.title} ✏️ <span class="text-[10px] text-indigo-600 font-normal">(雙擊可修改)</span></h4>
                     <p class="text-slate-600 bg-white p-2.5 rounded-xl border">${t.content}</p>
 
+                    ${t.fileUrl ? `
+                      <div class="bg-slate-100 p-2.5 rounded-xl border border-slate-200 flex items-center justify-between">
+                        <span class="text-xs text-slate-700 font-bold">📎 附加檔案：${t.fileName || '查看檔案'}</span>
+                        <a href="${t.fileUrl}" target="_blank" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded font-bold text-[10px]">開啟/下載檔案</a>
+                      </div>
+                    ` : ''}
+
                     ${t.checklist && t.checklist.length > 0 ? `
-                      <div class="bg-amber-50/60 p-2.5 rounded-xl border border-amber-200 space-y-1 my-1">
+                      <div class="bg-amber-50/60 p-2.5 rounded-xl border border-amber-200 space-y-1 my-1" onclick="event.stopPropagation()">
                         <span class="font-extrabold text-amber-950 text-[11px]">📦 備料檢查清單：</span>
                         <div class="flex flex-wrap gap-2 pt-1">
                           ${t.checklist.map((chk, idx) => `
@@ -1402,12 +1650,13 @@
 
     function renderSchedule() {
       const { days, fullSchedules, dailyWorkingCounts, totalRedDays } = calculateScheduleAndConflicts();
+      const shiftOptionsList = ['上班', '休假', '加班', '特半', '特一', '事假', '病假', '陪產', '婚假', '喪假'];
 
       return `
         <div class="bg-white p-4 rounded-2xl border space-y-4 shadow-xs">
           <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-2 border-b pb-3">
             <div class="flex items-center space-x-2">
-              <h2 class="font-extrabold text-slate-900 text-base">📅 全月排班表</h2>
+              <h2 class="font-extrabold text-slate-900 text-base">📅 全月排班表 (點擊儲存格即可直接點選更換班別)</h2>
               <div class="flex items-center space-x-1 bg-slate-100 p-1 rounded-xl">
                 <button onclick="jumpToCurrentMonth()" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-xs cursor-pointer">📍 今天</button>
                 <button onclick="shiftMonth(-1)" class="px-2.5 py-1 bg-white rounded-lg text-xs font-bold shadow-xs cursor-pointer">‹ 上個月</button>
@@ -1427,12 +1676,12 @@
             <table class="w-full text-xs min-w-[1250px] border-collapse">
               <thead>
                 <tr class="bg-slate-100 border-b text-slate-700">
-                  <th class="p-2.5 w-36 border-r sticky left-0 bg-slate-100 z-20">同仁姓名</th>
+                  <th class="p-2.5 w-44 border-r sticky left-0 bg-slate-100 z-20">同仁姓名 / 身分</th>
                   <th class="p-2 bg-rose-50 border-r w-24 font-bold">應休(紅字)</th>
                   <th class="p-2 bg-amber-50 border-r w-24 font-bold">已排休天數</th>
                   <th class="p-2 bg-emerald-50 border-r w-24 font-bold">剩餘未排天數</th>
                   ${days.map(m => `
-                    <th class="p-1.5 text-center border-r min-w-[52px] ${m.isWeekend || m.isHoliday ? 'bg-rose-50/50 text-rose-700 font-bold' : ''}">
+                    <th class="p-1.5 text-center border-r min-w-[56px] ${m.isWeekend || m.isHoliday ? 'bg-rose-50/50 text-rose-700 font-bold' : ''}">
                       <div>${windowState.scheduleMonth}/${m.day}</div>
                       <div class="text-[10px] ${m.isWeekend || m.isHoliday ? 'text-rose-600 font-black' : 'text-slate-500 font-bold'}">${m.weekDay}</div>
                       ${m.holidayName ? `<div class="text-[9px] bg-rose-600 text-white px-0.5 rounded font-black mt-0.5">${m.holidayName}</div>` : ''}
@@ -1444,12 +1693,19 @@
                 ${fullSchedules.map(empSched => {
                   const rem = empSched.remainingUnscheduledOff;
                   const remText = rem === 0 ? 'OK' : rem > 0 ? `-${rem}` : `+${Math.abs(rem)}`;
-                  const isExpired = empSched.healthCheckStatus === '🔴 體檢已過期';
+                  const isExpired = empSched.isHealthExpired;
+                  const empObj = windowState.employees.find(e => e.name === empSched.empName);
+                  const isPT = empObj?.type?.includes('兼職') || empObj?.type?.includes('PT');
 
                   return `
                     <tr class="border-b hover:bg-slate-50/80 ${isExpired ? 'bg-rose-50/40' : ''}">
                       <td class="p-2.5 font-bold sticky left-0 bg-white border-r z-10 whitespace-nowrap">
-                        ${empSched.empName}
+                        <div class="flex items-center justify-between">
+                          <span>${empSched.empName}</span>
+                          <span class="px-2 py-0.5 rounded text-[10px] font-black ${isPT ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}">
+                            ${isPT ? 'PT' : '正職'}
+                          </span>
+                        </div>
                         ${isExpired ? `<span class="block text-[9px] text-rose-600 font-black">🔴 體檢過期鎖定</span>` : ''}
                       </td>
                       <td class="p-2 text-center border-r font-mono text-rose-600 font-bold">${empSched.requiredOffDays} 天</td>
@@ -1459,10 +1715,14 @@
                         const shiftVal = empSched.shifts[dIdx] || (m.isWeekend || m.isHoliday ? '休假' : '上班');
                         const cfg = shiftTypesConfig().find(s => s.type === shiftVal) || shiftTypesConfig()[0];
                         return `
-                          <td class="p-1 text-center border-r ${m.isWeekend || m.isHoliday ? 'bg-rose-50/20' : ''}">
-                            <button onclick="rotateShift('${empSched.empName}', ${dIdx}, '${shiftVal}')" class="w-full py-1.5 rounded text-[10px] border cursor-pointer transition-all ${cfg.color}">
-                              ${shiftVal}
-                            </button>
+                          <td class="p-1.5 text-center border-r ${m.isWeekend || m.isHoliday ? 'bg-rose-50/20' : ''}">
+                            <select
+                              onchange="handleShiftSelectChange('${empSched.empName}', ${dIdx}, this)"
+                              class="shift-select w-full py-2 px-1 rounded-lg border text-[11px] font-bold shadow-xs transition-all ${cfg.color}"
+                              title="點擊切換班別"
+                            >
+                              ${shiftOptionsList.map(opt => `<option value="${opt}" ${shiftVal === opt ? 'selected' : ''}>${opt}</option>`).join('')}
+                            </select>
                           </td>
                         `;
                       }).join('')}
@@ -1499,6 +1759,10 @@
             <div class="bg-slate-800/80 border border-indigo-500/30 rounded-2xl p-3 text-center space-y-1">
               <p class="text-[11px] text-amber-300 font-bold">🕒 目前系統即時時間</p>
               <p id="live-clock-display" class="text-3xl font-black font-mono text-white">--:--:--</p>
+              <!-- 新增：打卡範圍安全警示 -->
+              <div class="mt-2 py-1.5 px-3 bg-rose-500/20 border border-rose-500/40 rounded-xl text-rose-300 font-bold text-[11px]">
+                📍 打卡範圍警示：僅限 台北市萬華區峨眉街122-1號 15公尺內
+              </div>
             </div>
 
             <div class="bg-white/10 p-4 rounded-xl space-y-3 text-xs">
@@ -1507,7 +1771,7 @@
                   <span class="text-slate-400 block text-[10px]">打卡身分：</span>
                   <strong class="text-sm font-extrabold text-amber-300">${windowState.currentUser.name} (${windowState.currentUser.role})</strong>
                 </div>
-                <span class="text-xs bg-emerald-500/20 text-emerald-300 px-2.5 py-1 rounded-lg border border-emerald-500/40 font-bold">🟢 雲端連線中</span>
+                <span class="text-xs bg-emerald-500/20 text-emerald-300 px-2.5 py-1 rounded-xl border border-emerald-500/40 font-bold">🟢 雲端連線中</span>
               </div>
 
               ${windowState.clockMode === 'businessTrip' ? `
@@ -1546,18 +1810,26 @@
 
           <div id="attendance-table-container" class="bg-white p-5 sm:p-6 rounded-2xl border shadow-md space-y-3">
             <div class="flex justify-between items-center border-b pb-3 no-print">
-              <h2 class="font-black text-slate-900 text-base">🗓️ 【${targetEmp.name}】全月考勤打卡紀錄表 (${windowState.scheduleYear}年${windowState.scheduleMonth}月)</h2>
+              <h2 class="font-black text-slate-900 text-base">🗓️ 管理員檢視：【${targetEmp.name}】全月考勤打卡紀錄表 (${windowState.scheduleYear}年${windowState.scheduleMonth}月)</h2>
               <div class="flex items-center space-x-2">
-                <select onchange="windowState.selectedCardStaff = this.value; render();" class="p-2 bg-slate-50 border rounded-xl font-bold text-xs text-indigo-900">
-                  ${windowState.employees.map(e => `<option value="${e.name}" ${targetEmp.name === e.name ? 'selected' : ''}>${e.name}</option>`).join('')}
+                <select id="attendance-staff-select" onchange="handleAttendanceStaffChange(this)" class="p-2 bg-slate-50 border rounded-xl font-bold text-xs text-indigo-900 cursor-pointer">
+                  ${windowState.employees.filter(e => e.status !== '離職').map(e => `<option value="${e.name}" ${targetEmp.name === e.name ? 'selected' : ''}>${e.name} (${e.role})</option>`).join('')}
                 </select>
-                <button onclick="printAttendanceRecord()" class="bg-indigo-600 text-white px-3.5 py-2 rounded-xl text-xs font-bold cursor-pointer">🖨️ 列印 A4 單頁打卡卡片</button>
+                <button onclick="printAttendanceRecord()" class="bg-indigo-600 text-white px-3.5 py-2 rounded-xl text-xs font-bold cursor-pointer">🖨️ 列印 A4 單頁簽核表</button>
               </div>
             </div>
 
             <table class="w-full text-[11px] text-center border-collapse border">
               <thead class="bg-slate-100 border-b font-bold">
-                <tr><th class="p-1 border-r">日期</th><th class="p-1 border-r">預定班別</th><th class="p-1 border-r">☀️ 上班刷卡</th><th class="p-1 border-r">🌙 下班刷卡</th><th class="p-1 border-r">實算工時/加班</th><th class="p-1">打卡地點</th></tr>
+                <tr>
+                  <th class="p-1 border-r">日期</th>
+                  <th class="p-1 border-r">預定班別</th>
+                  <th class="p-1 border-r">☀️ 上班刷卡</th>
+                  <th class="p-1 border-r">🌙 下班刷卡</th>
+                  <th class="p-1 border-r">實算工時/加班</th>
+                  <th class="p-1 border-r">打卡地點</th>
+                  ${windowState.isAdmin ? '<th class="p-1 no-print">管理員編輯</th>' : ''}
+                </tr>
               </thead>
               <tbody>
                 ${days.map(m => {
@@ -1569,7 +1841,12 @@
                       <td class="p-1 border-r font-mono">${rec ? rec.clockIn : '--:--'}</td>
                       <td class="p-1 border-r font-mono">${rec ? rec.clockOut : '--:--'}</td>
                       <td class="p-1 border-r font-mono">${rec ? `${rec.hoursWorked || 0}h (${rec.otHours || 0}h加班)` : '-'}</td>
-                      <td class="p-1 text-left">${rec ? rec.location : '-'}</td>
+                      <td class="p-1 border-r text-left">${rec ? rec.location : '-'}</td>
+                      ${windowState.isAdmin ? `
+                        <td class="p-1 no-print">
+                          ${rec ? `<button onclick="openEditClockModal(${rec.id})" class="bg-amber-400 text-slate-950 font-bold px-2 py-0.5 rounded text-[10px] cursor-pointer">✏️ 修改</button>` : '-'}
+                        </td>
+                      ` : ''}
                     </tr>
                   `;
                 }).join('')}
@@ -1634,29 +1911,34 @@
           </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            ${displayList.map(emp => `
-              <div class="bg-white p-4 rounded-2xl border space-y-2 text-xs shadow-xs ${emp.status === '離職' ? 'bg-slate-50 opacity-75' : ''}">
-                <div class="flex justify-between items-center border-b pb-2">
-                  <div>
-                    <span class="font-extrabold text-sm text-slate-900">${emp.name}</span>
-                    <span class="ml-2 font-mono text-[11px] bg-slate-100 px-2 py-0.5 rounded border font-bold">${emp.id}</span>
+            ${displayList.map(emp => {
+              const hcInfo = getHealthCheckInfo(emp.healthCheckDate);
+              return `
+                <div class="bg-white p-4 rounded-2xl border space-y-2 text-xs shadow-xs ${emp.status === '離職' ? 'bg-slate-50 opacity-75' : ''}">
+                  <div class="flex justify-between items-center border-b pb-2">
+                    <div>
+                      <span class="font-extrabold text-sm text-slate-900">${emp.name}</span>
+                      <span class="ml-2 font-mono text-[11px] bg-slate-100 px-2 py-0.5 rounded border font-bold">${emp.id}</span>
+                    </div>
+                    <div class="flex space-x-1">
+                      <button onclick="printSingleEmployeeRoster('${emp.id}')" class="bg-indigo-600 text-white font-bold px-2 py-0.5 rounded text-[10px] cursor-pointer">🖨️ 列印履歷表</button>
+                      ${windowState.isAdmin ? `<button onclick="openEditEmpModal('${emp.id}')" class="bg-amber-400 text-slate-950 font-bold px-2 py-0.5 rounded text-[10px] cursor-pointer">✏️ 編輯</button>` : ''}
+                    </div>
                   </div>
-                  <div class="flex space-x-1">
-                    <button onclick="printSingleEmployeeRoster('${emp.id}')" class="bg-indigo-600 text-white font-bold px-2 py-0.5 rounded text-[10px] cursor-pointer">🖨️ 列印履歷表</button>
-                    ${windowState.isAdmin ? `<button onclick="openEditEmpModal('${emp.id}')" class="bg-amber-400 text-slate-950 font-bold px-2 py-0.5 rounded text-[10px] cursor-pointer">✏️ 編輯</button>` : ''}
+                  <p>職稱：<strong>${emp.role}</strong> (${emp.type})</p>
+                  <p>🩺 體檢日期：<strong class="font-mono">${emp.healthCheckDate || '未填寫'}</strong></p>
+                  <p>🩺 體檢狀態：<strong class="${hcInfo.isExpired ? 'text-rose-600 font-black' : hcInfo.isWarning ? 'text-amber-600 font-bold' : 'text-emerald-700'}">${hcInfo.status}</strong></p>
+                  <p>🎂 生日：<strong>${emp.birthday || '未填寫'}</strong> · 📅 到職：<strong>${emp.joinDate || '未填寫'}</strong></p>
+                  <p>📞 電話：<span class="font-mono">${maskText(emp.phone, 'phone')}</span></p>
+                  <p>🏠 地址：${maskText(emp.address || '未填寫', 'address')}</p>
+                  <div class="bg-slate-50 p-2 rounded-xl flex justify-between font-bold text-slate-700 border">
+                    <span>🏖️ 特休總額：${emp.leaveEntitled} 天</span>
+                    <span>已休：${emp.leaveUsed} 天</span>
+                    <span class="text-indigo-600">剩餘：${emp.leaveEntitled - emp.leaveUsed} 天</span>
                   </div>
                 </div>
-                <p>職稱：<strong>${emp.role}</strong> (${emp.type}) · 體檢：<strong class="${emp.healthCheckStatus === '🔴 體檢已過期' ? 'text-rose-600 font-black' : 'text-emerald-700'}">${emp.healthCheckStatus || '🟢 合格'}</strong></p>
-                <p>🎂 生日：<strong>${emp.birthday || '未填寫'}</strong> · 📅 到職：<strong>${emp.joinDate || '未填寫'}</strong></p>
-                <p>📞 電話：<span class="font-mono">${maskText(emp.phone, 'phone')}</span></p>
-                <p>🏠 地址：${maskText(emp.address || '未填寫', 'address')}</p>
-                <div class="bg-slate-50 p-2 rounded-xl flex justify-between font-bold text-slate-700 border">
-                  <span>🏖️ 特休總額：${emp.leaveEntitled} 天</span>
-                  <span>已休：${emp.leaveUsed} 天</span>
-                  <span class="text-indigo-600">剩餘：${emp.leaveEntitled - emp.leaveUsed} 天</span>
-                </div>
-              </div>
-            `).join('')}
+              `;
+            }).join('')}
           </div>
         </div>
       `;
@@ -1672,15 +1954,15 @@
         const lateCount = empClocks.filter(c => c.status.includes('遲到')).length;
 
         const customEval = windowState.evaluations[emp.name] || {
-          efficiencyScore: 5, tripCoopScore: 5, sanitationScore: 5, knowledgeScore: 5,
-          comment: '工作熱情，門市服務顧客滿意度高，維護優秀清潔與餐點品質。'
+          efficiencyScore: 3, tripCoopScore: 3, sanitationScore: 3, knowledgeScore: 3,
+          comment: '工作表現正常。'
         };
 
         const baseScore = 70;
-        const eff = customEval.efficiencyScore || 5;
-        const trip = customEval.tripCoopScore || 5;
-        const san = customEval.sanitationScore || 5;
-        const knw = customEval.knowledgeScore || 5;
+        const eff = customEval.efficiencyScore || 3;
+        const trip = customEval.tripCoopScore || 3;
+        const san = customEval.sanitationScore || 3;
+        const knw = customEval.knowledgeScore || 3;
 
         const calculatedScore = Math.min(100, Math.max(0,
           baseScore + (eff * 2) + (trip * 2) + (san * 2) + (knw * 2) + (completedTaskCount * 2) - (lateCount * 5) - (uncompletedTaskCount * 3)
@@ -1698,7 +1980,7 @@
         <div class="space-y-4">
           <div class="bg-white p-4 rounded-2xl border flex flex-col sm:flex-row justify-between items-center gap-3 shadow-xs">
             <div>
-              <h2 class="font-extrabold text-slate-900 text-base">🏅 門市員工當月績效考核表 (${windowState.scheduleYear}年${windowState.scheduleMonth}月)</h2>
+              <h2 class="font-extrabold text-slate-900 text-base">🏅 門市員工當月績效考核表 (70分基準起算) (${windowState.scheduleYear}年${windowState.scheduleMonth}月)</h2>
               <p class="text-xs text-slate-500">提示：點擊右側按鈕可將本月考核成績封存入庫，供「年度考核彙整」查閱</p>
             </div>
             <div class="flex items-center space-x-2">
@@ -1825,6 +2107,35 @@
         `;
       }
 
+      if (windowState.activeModal === 'clockModal') {
+        const m = windowState.modalData;
+        return `
+          <div class="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
+            <form onsubmit="handleSaveClockSubmit(event)" class="bg-white rounded-3xl max-w-sm w-full p-6 space-y-3">
+              <h3 class="font-bold text-slate-900 text-base">✏️ 修改【${m.name}】打卡紀錄 (${m.date})</h3>
+              <div class="space-y-2 text-xs">
+                <div>
+                  <label class="block text-slate-600 mb-1 font-bold">☀️ 上班時間</label>
+                  <input type="time" id="edit-clock-in" required value="${m.clockIn}" class="w-full p-2.5 border rounded-xl font-mono text-center" />
+                </div>
+                <div>
+                  <label class="block text-slate-600 mb-1 font-bold">🌙 下班時間</label>
+                  <input type="time" id="edit-clock-out" required value="${m.clockOut}" class="w-full p-2.5 border rounded-xl font-mono text-center" />
+                </div>
+                <div>
+                  <label class="block text-slate-600 mb-1 font-bold">📍 打卡地點/事由</label>
+                  <input type="text" id="edit-clock-loc" required value="${m.location}" class="w-full p-2.5 border rounded-xl" />
+                </div>
+              </div>
+              <div class="flex justify-end gap-2 pt-2">
+                <button type="button" onclick="closeModal()" class="px-4 py-2 text-xs text-slate-600 cursor-pointer">取消</button>
+                <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold cursor-pointer">儲存修改</button>
+              </div>
+            </form>
+          </div>
+        `;
+      }
+
       if (windowState.activeModal === 'taskModal') {
         const m = windowState.modalData;
         const taskCategories = ['調理包製作', '代工產品製作', '台北活動行程', '桃園活動行程', '台中活動行程', '台南活動行程', '高雄活動行程', '文書報價單作業', '私人行程'];
@@ -1845,7 +2156,7 @@
                   </select>
                 </div>
                 <div>
-                  <label class="block text-purple-900 font-bold mb-1">🔁 循環重複選項</label>
+                  <label class="block text-purple-900 font-bold mb-1">🔁 循環重複選項 (完成後自動生成)</label>
                   <select id="task-repeat" class="w-full p-2 border border-purple-300 bg-purple-50 rounded-xl font-bold">
                     ${repeatOptions.map(r => `<option value="${r}" ${m.repeat === r ? 'selected' : ''}>${r}</option>`).join('')}
                   </select>
@@ -1864,8 +2175,15 @@
                 </div>
                 <div>
                   <label class="block text-slate-600 mb-1">地點</label>
-                  <input type="text" id="task-location" value="${m.location || '台北總店'}" class="w-full p-2 border rounded-xl" />
+                  <input type="text" id="task-location" value="${m.location || '中央廚房'}" class="w-full p-2 border rounded-xl font-bold text-indigo-900" />
                 </div>
+              </div>
+
+              <!-- 新增：檔案上傳欄位 (圖片或 PDF) -->
+              <div class="bg-indigo-50/70 p-3 rounded-2xl border border-indigo-200 space-y-1.5">
+                <label class="block text-xs font-extrabold text-indigo-950">📎 附加檔案 (圖片或 PDF)</label>
+                <input type="file" accept="image/*,application/pdf" onchange="handleTaskFileUploadInModal(event)" class="w-full p-1 border rounded-xl text-xs bg-white" />
+                ${m.fileName ? `<p class="text-[11px] text-emerald-700 font-bold">已選取檔案：${m.fileName}</p>` : ''}
               </div>
 
               <div class="bg-amber-50/70 p-3 rounded-2xl border border-amber-200 space-y-2">
@@ -1940,11 +2258,8 @@
                   </select>
                 </div>
                 <div>
-                  <label class="block text-slate-600 mb-1 font-bold">體檢狀態</label>
-                  <select id="emp-health-status" class="w-full p-2 border rounded-xl font-bold">
-                    <option value="🟢 合格" ${emp.healthCheckStatus !== '🔴 體檢已過期' ? 'selected' : ''}>🟢 合格</option>
-                    <option value="🔴 體檢已過期" ${emp.healthCheckStatus === '🔴 體檢已過期' ? 'selected' : ''}>🔴 體檢已過期 (自動鎖定排班)</option>
-                  </select>
+                  <label class="block text-slate-600 mb-1 font-bold text-indigo-900">🩺 體檢日期 (效期1年)</label>
+                  <input type="date" id="emp-health-date" required value="${emp.healthCheckDate || todayStr}" class="w-full p-2 border border-indigo-300 bg-indigo-50 rounded-xl font-mono font-bold" />
                 </div>
                 <div>
                   <label class="block text-slate-600 mb-1">職稱崗位</label>
