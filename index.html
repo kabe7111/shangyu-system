@@ -6,7 +6,7 @@
   <title>全錸蒔國際餐飲 營運管理系統</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    /* 強制列印排版優化 */
+    /* 強制列印排版優化 - 確保所有報表可完整列印 */
     @media print {
       body * { visibility: hidden !important; }
       #print-modal-area, #print-modal-area * { visibility: visible !important; }
@@ -16,61 +16,590 @@
         top: 0 !important;
         width: 100% !important;
         background: white !important;
-        padding: 0 !important;
+        padding: 5px !important;
         margin: 0 !important;
       }
       .no-print { display: none !important; }
       @page { size: A4 portrait; margin: 10mm; }
     }
-    .shift-select { -webkit-appearance: none; text-align: center; cursor: pointer; }
+    .shift-select {
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+      text-align: center;
+      text-align-last: center;
+      cursor: pointer;
+    }
   </style>
 </head>
-<body class="bg-slate-100 min-h-screen text-slate-800">
+<body class="bg-slate-100 min-h-screen font-sans text-slate-800">
 
-  <div id="toast-container" class="fixed top-5 right-5 z-[9999] flex flex-col gap-2"></div>
+  <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
   <div id="app"></div>
   <div id="print-modal-area" class="hidden print:block"></div>
 
   <script type="module">
-    // Firebase 初始化與狀態管理
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-app.js";
-    import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-firestore.js";
+    import { getFirestore, doc, setDoc, getDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-firestore.js";
 
-    // ... (維持您既有的 Firebase 配置) ...
-
-    // 本次新增功能邏輯 (合併入渲染邏輯中)：
-    // 1. 員工排序：employees 物件新增 `sortOrder` 屬性，渲染時使用 .sort((a,b) => a.sortOrder - b.sortOrder)
-    // 2. 外勤打卡：executeClockAction 中若為外勤，tripReason 由 input 讀取，不強制鎖定。
-    // 3. 列印修復：printFunction 使用後強制顯示 #print-modal-area
-    // 4. 公務車提醒：車輛物件增加 nextInspection, insuranceExpiry, lastMaintenanceMileage 欄位。
-    //    統計邏輯：if (new Date(car.nextInspection) - today < 30天) { 顯示黃色提醒 }
-    
-    // 系統狀態物件
-    let windowState = {
-        // ... (維持您既有的所有資料欄位) ...
-        employees: [],
-        vehicles: [] // 新增公務車資料結構
+    const firebaseConfig = {
+      apiKey: "AIzaSyARUQy_y-QEPlm7arCJujXQBcFMDTUPBxc",
+      authDomain: "shangyu-management.firebaseapp.com",
+      projectId: "shangyu-management"
     };
 
-    // 核心渲染函數 (渲染邏輯包含您要求的列印、排序、提醒)
-    function render() {
-        const app = document.getElementById('app');
-        if(!app) return;
-        
-        // 渲染時執行排序：
-        const sortedEmps = [...windowState.employees].sort((a,b) => (a.sortOrder || 0) - (b.sortOrder || 0));
-        
-        // 渲染時計算公務車提醒：
-        // const isWarning = (car) => (new Date(car.nextInspection) - new Date()) < (30 * 86400000);
-        
-        // app.innerHTML = ... (根據模組與狀態渲染 HTML) ...
+    let db = null;
+    try {
+      const app = initializeApp(firebaseConfig);
+      db = getFirestore(app);
+    } catch (e) {
+      console.warn("Firebase Init Warning: ", e);
     }
 
-    // 初始化同步
-    // ... (維持 firebase 同步邏輯) ...
+    const defaultLogoSvg = "data:image/svg+xml;utf8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 220" width="200" height="220"><text x="100" y="110" font-size="20" text-anchor="middle">LOGO</text></svg>`);
 
-    // 啟動系統
-    render();
+    const nowToday = new Date();
+    const curYear = nowToday.getFullYear();
+    const curMonth = nowToday.getMonth() + 1;
+    const todayStr = `${curYear}-${String(curMonth).padStart(2,'0')}-${String(nowToday.getDate()).padStart(2,'0')}`;
+
+    // 系統狀態物件
+    const windowState = {
+      currentUser: JSON.parse(localStorage.getItem('shangyu_loginUser')) || null,
+      activeModule: 'announcements',
+      isAdmin: false,
+      showTerminatedEmps: false,
+      logoUrl: localStorage.getItem('shangyu_logo') || defaultLogoSvg,
+      slogan: localStorage.getItem('shangyu_slogan') || '饌玉炊金，全錸蒔誠獻 — 傳承真摯好味道',
+      scheduleYear: curYear,
+      scheduleMonth: curMonth,
+      selectedTaskDate: todayStr,
+      selectedCardStaff: JSON.parse(localStorage.getItem('shangyu_loginUser'))?.name || '',
+      selectedAnnualYear: curYear,
+      selectedAnnualEmp: '',
+      clockMode: 'store',
+      tripReason: '', // 外勤事由預設為空
+      employees: [],
+      announcements: [],
+      tasks: [],
+      schedules: {},
+      clockRecords: [],
+      evaluations: {},
+      evalArchives: {},
+      customReminders: [], // 自訂提醒事項
+      vehicles: [], // 公務車清單
+      vehicleLogs: [], // 公務車使用紀錄
+      activeModal: null,
+      modalData: {}
+    };
+
+    // 工具函數
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toast-container');
+      if (!container) return;
+      const toast = document.createElement('div');
+      const bgClass = type === 'success' ? 'bg-emerald-600' : type === 'error' ? 'bg-rose-600' : 'bg-amber-500 text-slate-950';
+      toast.className = `${bgClass} text-white font-bold text-xs px-4 py-3 rounded-2xl shadow-xl transition-all duration-300 pointer-events-none mb-2`;
+      toast.innerHTML = `<span>${message}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => { toast.remove(); }, 3500);
+    }
+
+    function getSortedEmployees() {
+      return [...windowState.employees].sort((a, b) => (Number(a.sortOrder) || 999) - (Number(b.sortOrder) || 999));
+    }
+
+    function getHealthCheckInfo(checkDateStr) {
+      if (!checkDateStr) return { status: '🔴 尚未建檔', isExpired: true };
+      const checkDate = new Date(checkDateStr);
+      const expireDate = new Date(checkDate);
+      expireDate.setFullYear(expireDate.getFullYear() + 1);
+      const diffDays = Math.ceil((expireDate - new Date()) / (1000 * 60 * 60 * 24));
+      if (diffDays < 0) return { status: `🔴 已過期`, isExpired: true };
+      else if (diffDays <= 30) return { status: `🟡 即將到期`, isExpired: false, isWarning: true };
+      else return { status: `🟢 合格`, isExpired: false };
+    }
+
+    // 提醒判斷工具 (驗車/保險/保養)
+    function getVehicleWarning(car) {
+      let warnings = [];
+      const dNow = new Date();
+      if (car.nextInspection) {
+        const diffIns = (new Date(car.nextInspection) - dNow) / (1000*60*60*24);
+        if (diffIns < 0) warnings.push('🔴 驗車已過期');
+        else if (diffIns <= 30) warnings.push('🟡 驗車即將到期');
+      }
+      if (car.nextInsurance) {
+        const diffIns = (new Date(car.nextInsurance) - dNow) / (1000*60*60*24);
+        if (diffIns < 0) warnings.push('🔴 保險已過期');
+        else if (diffIns <= 30) warnings.push('🟡 保險即將到期');
+      }
+      if (car.nextMaintenance && car.mileage) {
+        const remKm = Number(car.nextMaintenance) - Number(car.mileage);
+        if (remKm <= 0) warnings.push('🔴 需立即保養');
+        else if (remKm <= 500) warnings.push(`🔧 距保養剩 ${remKm}km`);
+      }
+      return warnings;
+    }
+
+    // Firebase 雲端同步邏輯
+    function initFirebaseSync() {
+      if (!db) { render(); return; }
+      const docRef = doc(db, 'system', 'mainData');
+      getDoc(docRef).then(docSnap => {
+        if (docSnap.exists()) applyCloudData(docSnap.data());
+        else saveStateToCloud();
+      });
+      onSnapshot(docRef, docSnap => {
+        if (docSnap.exists()) applyCloudData(docSnap.data());
+      });
+    }
+
+    function applyCloudData(data) {
+      if (data.employees) windowState.employees = data.employees;
+      if (data.announcements) windowState.announcements = data.announcements;
+      if (data.tasks) windowState.tasks = data.tasks;
+      if (data.schedules) windowState.schedules = data.schedules;
+      if (data.clockRecords) windowState.clockRecords = data.clockRecords;
+      if (data.evaluations) windowState.evaluations = data.evaluations;
+      if (data.evalArchives) windowState.evalArchives = data.evalArchives;
+      if (data.customReminders) windowState.customReminders = data.customReminders;
+      if (data.vehicles) windowState.vehicles = data.vehicles;
+      if (data.vehicleLogs) windowState.vehicleLogs = data.vehicleLogs;
+      if (data.slogan) windowState.slogan = data.slogan;
+
+      if (!windowState.selectedCardStaff && windowState.employees.length > 0) {
+         windowState.selectedCardStaff = windowState.employees[0].name;
+      }
+      if (!windowState.selectedAnnualEmp && windowState.employees.length > 0) {
+         windowState.selectedAnnualEmp = windowState.employees[0].name;
+      }
+      render();
+    }
+
+    async function saveStateToCloud() {
+      if (!db) return;
+      await setDoc(doc(db, 'system', 'mainData'), {
+        employees: windowState.employees, announcements: windowState.announcements, tasks: windowState.tasks,
+        schedules: windowState.schedules, clockRecords: windowState.clockRecords, evaluations: windowState.evaluations,
+        evalArchives: windowState.evalArchives, customReminders: windowState.customReminders,
+        vehicles: windowState.vehicles, vehicleLogs: windowState.vehicleLogs, slogan: windowState.slogan,
+        updatedAt: serverTimestamp()
+      });
+    }
+
+    // 暴露全域函式給 HTML 使用
+    window.switchModule = (id) => { windowState.activeModule = id; render(); };
+    window.closeModal = () => { windowState.activeModal = null; render(); };
+    window.openAdminModal = () => { windowState.activeModal = 'admin'; render(); };
+    window.toggleAdminLock = () => { windowState.isAdmin = !windowState.isAdmin; render(); };
+    window.userLogout = () => { windowState.currentUser = null; localStorage.removeItem('shangyu_loginUser'); render(); };
+
+    // --- 自訂提醒事項邏輯 ---
+    window.addReminder = () => {
+      const txt = prompt("請輸入自訂提醒事項 (例如：濾芯已於8/1更換)：");
+      if (txt) {
+        windowState.customReminders.push({ id: Date.now(), text: txt });
+        saveStateToCloud();
+      }
+    };
+    window.deleteReminder = (id) => {
+      windowState.customReminders = windowState.customReminders.filter(r => r.id !== id);
+      saveStateToCloud();
+    };
+
+    // --- 渲染共用標頭區塊 ---
+    function renderHeader() {
+      return `
+        <header class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-4 shadow-lg no-print">
+          <div class="flex justify-between items-center mb-3">
+            <div>
+              <h1 class="font-black text-xl">全錸蒔國際餐飲 營運管理系統</h1>
+              <p class="text-xs text-amber-300 italic">“${windowState.slogan}”</p>
+            </div>
+            <div class="flex items-center space-x-2">
+              <span class="text-xs bg-white/10 px-3 py-1.5 rounded-xl border">👤 ${windowState.currentUser.name}</span>
+              ${windowState.isAdmin ? `<button onclick="toggleAdminLock()" class="bg-emerald-500 text-slate-950 px-3 py-1.5 rounded-xl text-xs font-bold">🔓 管理員已解鎖</button>` : `<button onclick="openAdminModal()" class="bg-amber-400 text-slate-950 px-3 py-1.5 rounded-xl text-xs font-bold">🔑 解鎖管理員</button>`}
+              <button onclick="userLogout()" class="bg-rose-600 px-3 py-1.5 rounded-xl text-xs font-bold">登出</button>
+            </div>
+          </div>
+
+          <!-- 自訂提醒區域 -->
+          <div class="bg-amber-400/20 border border-amber-400/30 rounded-xl px-3 py-2 mb-3 flex flex-wrap gap-2 text-xs">
+            <span class="font-bold text-amber-300 mr-2">📌 備忘與設備提醒：</span>
+            ${windowState.customReminders.map(r => `
+              <span class="bg-amber-500/20 text-amber-200 px-2 py-0.5 rounded border border-amber-500/40 flex items-center">
+                ${r.text}
+                ${windowState.isAdmin ? `<button onclick="deleteReminder(${r.id})" class="ml-1 text-rose-300 hover:text-rose-100">✕</button>` : ''}
+              </span>
+            `).join('')}
+            ${windowState.isAdmin ? `<button onclick="addReminder()" class="bg-amber-400 text-slate-900 px-2 rounded font-bold text-[10px]">+ 新增提醒</button>` : ''}
+          </div>
+
+          <!-- 導覽列 -->
+          <div class="grid grid-cols-4 sm:grid-cols-9 gap-1 text-[11px]">
+            ${[
+              { id: 'announcements', label: '1.布告欄' }, { id: 'tasks', label: '2.工作行事曆' },
+              { id: 'schedule', label: '3.排班表' }, { id: 'attendance', label: '4.員工打卡' },
+              { id: 'lateReport', label: '5.遲到統計' }, { id: 'vehicles', label: '6.公務車管理' },
+              { id: 'hrRoster', label: '7.員工名冊' }, { id: 'evaluation', label: '8.員工考核' },
+              { id: 'annualEval', label: '9.年度考核' }
+            ].map(tab => `
+              <button onclick="switchModule('${tab.id}')" class="py-2 px-1 rounded-xl font-bold cursor-pointer ${windowState.activeModule === tab.id ? 'bg-amber-400 text-slate-950 shadow-md font-black' : 'bg-white/10 hover:bg-white/20'}">${tab.label}</button>
+            `).join('')}
+          </div>
+        </header>
+      `;
+    }
+
+    // --- 模組：布告欄 ---
+    function renderAnnouncements() {
+      return `
+        <div class="space-y-4">
+          <div class="bg-white p-4 rounded-xl shadow border flex justify-between">
+            <h2 class="font-bold">📢 總部即時布告欄</h2>
+            ${windowState.isAdmin ? `<button onclick="windowState.activeModal='annModal'; render();" class="bg-indigo-600 text-white px-3 py-1 rounded text-xs">發布公告</button>` : ''}
+          </div>
+          ${windowState.announcements.map(a => `
+            <div class="bg-white p-4 rounded-xl shadow border">
+              <span class="text-xs font-bold text-amber-600">${a.level}</span>
+              <h3 class="font-bold text-lg mt-1">${a.title}</h3>
+              <p class="text-sm mt-2 whitespace-pre-wrap">${a.content}</p>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    // --- 模組：員工打卡 (修復外勤事由) ---
+    window.toggleClockMode = (mode) => { windowState.clockMode = mode; render(); };
+    window.executeClockAction = (type) => {
+      if (windowState.clockMode === 'businessTrip' && !windowState.tripReason.trim()) {
+        return showToast('⚠️ 外勤打卡請務必填寫地點與事由！', 'error');
+      }
+      const timeStr = new Date().toLocaleTimeString('zh-TW', { hour12: false }).slice(0, 5);
+      const isLate = type === 'in' && timeStr > '09:00';
+      
+      const existingIn = windowState.clockRecords.find(c => c.name === windowState.currentUser.name && c.date === todayStr && c.clockIn !== '--:--');
+      let hoursWorked = 0, otHours = 0;
+      if (type === 'out' && existingIn) {
+        const [inH, inM] = existingIn.clockIn.split(':').map(Number);
+        const [outH, outM] = timeStr.split(':').map(Number);
+        const diff = Math.max(0, (outH*60+outM) - (inH*60+inM)) / 60;
+        hoursWorked = Math.round(diff * 2) / 2;
+        if(hoursWorked > 9) otHours = hoursWorked - 9;
+      }
+
+      windowState.clockRecords.unshift({
+        id: Date.now(), name: windowState.currentUser.name, date: todayStr,
+        clockIn: type === 'in' ? timeStr : (existingIn?.clockIn || '--:--'),
+        clockOut: type === 'out' ? timeStr : '--:--',
+        hoursWorked, otHours, status: isLate ? '⚠️ 遲到' : '🟢 正常',
+        location: windowState.clockMode === 'store' ? '公司打卡' : `🚗 外勤: ${windowState.tripReason}`
+      });
+      saveStateToCloud(); showToast('打卡成功！'); render();
+    };
+
+    function renderAttendance() {
+      return `
+        <div class="space-y-4">
+          <div class="bg-gradient-to-r from-slate-900 to-indigo-950 text-white p-5 rounded-2xl no-print">
+            <div class="flex justify-between">
+              <h3 class="font-bold">🏢 公司與外勤打卡</h3>
+              <div class="bg-slate-800 p-1 rounded-xl text-xs flex gap-1">
+                <button onclick="toggleClockMode('store')" class="px-3 py-1 rounded-lg ${windowState.clockMode==='store'?'bg-indigo-600':'text-slate-400'}">公司打卡</button>
+                <button onclick="toggleClockMode('businessTrip')" class="px-3 py-1 rounded-lg ${windowState.clockMode==='businessTrip'?'bg-amber-500 text-slate-950':'text-slate-400'}">外勤打卡</button>
+              </div>
+            </div>
+            
+            ${windowState.clockMode === 'store' ? `
+              <div class="mt-4 py-1.5 px-3 bg-rose-500/20 border border-rose-500/40 rounded-xl text-rose-300 font-bold text-xs">
+                📍 警示：僅限 台北市萬華區峨眉街122-1號 15公尺內打卡
+              </div>
+            ` : `
+              <div class="mt-4">
+                <label class="text-amber-300 font-bold text-xs">🚗 外勤地點與事由說明 (必填，開放自由輸入)</label>
+                <input type="text" value="${windowState.tripReason}" onchange="windowState.tripReason=this.value" placeholder="請輸入目的地與事由..." class="w-full mt-1 p-2 bg-slate-800 border border-amber-400 rounded-lg text-white text-sm" />
+              </div>
+            `}
+
+            <div class="flex gap-2 mt-4">
+              <button onclick="executeClockAction('in')" class="flex-1 bg-emerald-500 py-3 rounded-xl font-bold text-slate-900">☀️ 上班打卡</button>
+              <button onclick="executeClockAction('out')" class="flex-1 bg-rose-600 py-3 rounded-xl font-bold text-white">🌙 下班打卡</button>
+            </div>
+          </div>
+          <div class="bg-white p-4 rounded-xl shadow text-sm">請切換模組查看其他功能...</div>
+        </div>
+      `;
+    }
+    // --- 模組：公務車管理 (含智慧提醒、修改、刪除、列印) ---
+    window.openAddVehicleModal = () => {
+      windowState.activeModal = 'vehicleModal';
+      windowState.modalData = { id: `C0${windowState.vehicles.length + 1}`, name: '', plate: '', mileage: 0, nextInspection: todayStr, nextInsurance: todayStr, nextMaintenance: 5000 };
+      render();
+    };
+    window.openEditVehicleModal = (carId) => {
+      const car = windowState.vehicles.find(v => v.id === carId);
+      if (car) {
+        windowState.activeModal = 'vehicleModal';
+        windowState.modalData = { ...car };
+        render();
+      }
+    };
+    window.handleSaveVehicleSubmit = (e) => {
+      e.preventDefault();
+      const m = windowState.modalData;
+      const payload = {
+        id: document.getElementById('veh-id').value,
+        name: document.getElementById('veh-name').value,
+        plate: document.getElementById('veh-plate').value,
+        mileage: Number(document.getElementById('veh-mileage').value) || 0,
+        nextInspection: document.getElementById('veh-ins').value,
+        nextInsurance: document.getElementById('veh-insurance').value,
+        nextMaintenance: Number(document.getElementById('veh-maint').value) || 5000
+      };
+      const idx = windowState.vehicles.findIndex(v => v.id === payload.id);
+      if (idx >= 0) windowState.vehicles[idx] = payload;
+      else windowState.vehicles.push(payload);
+      saveStateToCloud(); windowState.activeModal = null; showToast('車輛資料已儲存！'); render();
+    };
+
+    window.openVehicleLogModal = (carId) => {
+      windowState.activeModal = 'vehLogModal';
+      windowState.modalData = { carId, type: '出車', startMileage: windowState.vehicles.find(v=>v.id===carId)?.mileage || 0, dest: '', reason: '', endMileage: 0, fuelAmount: 0, fuelCost: 0, note: '' };
+      render();
+    };
+
+    window.handleSaveVehLogSubmit = (e) => {
+      e.preventDefault();
+      const m = windowState.modalData;
+      const logEntry = {
+        id: Date.now(),
+        carId: m.carId,
+        date: todayStr,
+        staff: windowState.currentUser.name,
+        type: document.getElementById('log-type').value,
+        startMileage: Number(document.getElementById('log-start-mil').value) || 0,
+        endMileage: Number(document.getElementById('log-end-mil').value) || 0,
+        dest: document.getElementById('log-dest').value,
+        reason: document.getElementById('log-reason').value,
+        fuelAmount: Number(document.getElementById('log-fuel').value) || 0,
+        fuelCost: Number(document.getElementById('log-cost').value) || 0,
+        note: document.getElementById('log-note').value
+      };
+      
+      // 更新車輛總里程
+      if(logEntry.endMileage > 0) {
+        const car = windowState.vehicles.find(v => v.id === m.carId);
+        if(car) car.mileage = logEntry.endMileage;
+      }
+
+      windowState.vehicleLogs.unshift(logEntry);
+      saveStateToCloud(); windowState.activeModal = null; showToast('公務車紀錄已更新！'); render();
+    };
+
+    window.deleteVehicleLog = (logId) => {
+      if(confirm('確定要刪除這筆公務車紀錄嗎？')) {
+        windowState.vehicleLogs = windowState.vehicleLogs.filter(l => l.id !== logId);
+        saveStateToCloud(); showToast('紀錄已刪除'); render();
+      }
+    };
+
+    function renderVehicles() {
+      return `
+        <div class="space-y-4">
+          <div class="bg-white p-4 rounded-xl shadow flex justify-between items-center">
+            <div>
+              <h2 class="font-bold text-base">🚗 公務車使用登記與智慧控管</h2>
+              <p class="text-xs text-slate-500">提供驗車(30天前)、保險(30天前)與保養(剩500km)自動預警功能</p>
+            </div>
+            ${windowState.isAdmin ? `<button onclick="openAddVehicleModal()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-xl text-xs font-bold">+ 新增公務車</button>` : ''}
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            ${windowState.vehicles.map(car => {
+              const warnings = getVehicleWarning(car);
+              return `
+                <div class="bg-white p-4 rounded-xl shadow border space-y-2 text-xs">
+                  <div class="flex justify-between items-center border-b pb-2">
+                    <span class="font-bold text-sm text-indigo-950">${car.name} (${car.plate})</span>
+                    <div class="space-x-1">
+                      <button onclick="openVehicleLogModal('${car.id}')" class="bg-amber-400 text-slate-950 px-2.5 py-1 rounded font-bold">📝 填寫用車/還車</button>
+                      ${windowState.isAdmin ? `<button onclick="openEditVehicleModal('${car.id}')" class="bg-slate-200 px-2 py-1 rounded font-bold">編輯</button>` : ''}
+                    </div>
+                  </div>
+                  <p>目前總里程：<strong class="font-mono text-sm">${car.mileage} km</strong></p>
+                  <p>下次驗車日：${car.nextInspection} | 下次保險：${car.nextInsurance}</p>
+                  <div class="flex flex-wrap gap-1 pt-1">
+                    ${warnings.map(w => `<span class="bg-rose-100 text-rose-700 px-2 py-0.5 rounded font-bold">${w}</span>`).join('')}
+                    ${warnings.length === 0 ? '<span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold">🟢 車況正常</span>' : ''}
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+
+          <!-- 使用與保養明細紀錄 -->
+          <div class="bg-white p-4 rounded-xl shadow border space-y-3">
+            <h3 class="font-bold text-sm">📋 公務車出車、加油與保養明細紀錄 (可修改/刪除)</h3>
+            <table class="w-full text-[11px] text-center border">
+              <thead class="bg-slate-100">
+                <tr>
+                  <th class="p-1.5 border">日期</th><th class="p-1.5 border">車輛</th><th class="p-1.5 border">登記人</th>
+                  <th class="p-1.5 border">類型</th><th class="p-1.5 border">里程</th><th class="p-1.5 border">事由/明細</th>
+                  <th class="p-1.5 border">加油/油費</th><th class="p-1.5 border">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${windowState.vehicleLogs.map(l => {
+                  const car = windowState.vehicles.find(v => v.id === l.carId);
+                  return `
+                    <tr class="border-b">
+                      <td class="p-1.5 border font-mono">${l.date}</td>
+                      <td class="p-1.5 border font-bold">${car ? car.name : '未知'}</td>
+                      <td class="p-1.5 border">${l.staff}</td>
+                      <td class="p-1.5 border"><span class="px-2 py-0.5 bg-indigo-100 text-indigo-800 rounded font-bold">${l.type}</span></td>
+                      <td class="p-1.5 border font-mono">${l.startMileage} ~ ${l.endMileage}km</td>
+                      <td class="p-1.5 border text-left">${l.dest} (${l.reason}) ${l.note ? `[備註: ${l.note}]` : ''}</td>
+                      <td class="p-1.5 border">${l.fuelAmount ? `${l.fuelAmount}L ($${l.fuelCost})` : '-'}</td>
+                      <td class="p-1.5 border">
+                        <button onclick="deleteVehicleLog(${l.id})" class="text-rose-600 font-bold hover:underline">刪除</button>
+                      </td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    // --- 模組：HR 員工名冊 (含排序權重與履歷上傳) ---
+    function renderHrRoster() {
+      const activeList = getSortedEmployees().filter(e => e.status !== '離職');
+      return `
+        <div class="space-y-4">
+          <div class="bg-white p-4 rounded-xl shadow flex justify-between">
+            <h2 class="font-bold">👥 HR 員工名冊 (可調整排序權重)</h2>
+            ${windowState.isAdmin ? `<button onclick="windowState.activeModal='empModal'; windowState.modalData={id:'E0'+(windowState.employees.length+1), name:'', role:'', type:'正職員工', sortOrder:1}; render();" class="bg-indigo-600 text-white px-3 py-1 rounded text-xs">+ 新增同仁</button>` : ''}
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            ${activeList.map(emp => `
+              <div class="bg-white p-4 rounded-xl shadow border space-y-1 text-xs">
+                <div class="flex justify-between items-center">
+                  <span class="font-bold text-sm">${emp.name} (${emp.role})</span>
+                  <span class="bg-slate-100 px-2 py-0.5 rounded font-bold">排序: ${emp.sortOrder || 1}</span>
+                </div>
+                <p>電話：${emp.phone || '未填'} | 體檢：${emp.healthCheckDate || '未填'}</p>
+                ${emp.resumeFile ? `<a href="${emp.resumeFile}" target="_blank" class="text-indigo-600 font-bold underline block mt-1">📎 查看手寫履歷檔案</a>` : ''}
+                ${windowState.isAdmin ? `<button onclick="windowState.activeModal='empModal'; windowState.modalData={...emp}; render();" class="mt-2 bg-amber-400 text-slate-950 px-2 py-1 rounded font-bold">編輯名冊</button>` : ''}
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    // --- 共用彈跳視窗渲染 ---
+    function renderModals() {
+      if (!windowState.activeModal) return '';
+      
+      // 車輛編輯彈窗
+      if (windowState.activeModal === 'vehicleModal') {
+        const m = windowState.modalData;
+        return `
+          <div class="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
+            <form onsubmit="handleSaveVehicleSubmit(event)" class="bg-white rounded-2xl max-w-sm w-full p-6 space-y-3 text-xs">
+              <h3 class="font-bold text-sm">🚗 編輯/新增公務車</h3>
+              <div><label>車輛編號</label><input type="text" id="veh-id" required value="${m.id}" class="w-full p-2 border rounded" /></div>
+              <div><label>車輛名稱</label><input type="text" id="veh-name" required value="${m.name}" class="w-full p-2 border rounded" /></div>
+              <div><label>車牌號碼</label><input type="text" id="veh-plate" required value="${m.plate}" class="w-full p-2 border rounded" /></div>
+              <div><label>目前總里程 (km)</label><input type="number" id="veh-mileage" required value="${m.mileage}" class="w-full p-2 border rounded" /></div>
+              <div><label>下次驗車日</label><input type="date" id="veh-ins" required value="${m.nextInspection}" class="w-full p-2 border rounded" /></div>
+              <div><label>下次保險日</label><input type="date" id="veh-insurance" required value="${m.nextInsurance}" class="w-full p-2 border rounded" /></div>
+              <div><label>下次保養目標里程</label><input type="number" id="veh-maint" required value="${m.nextMaintenance}" class="w-full p-2 border rounded" /></div>
+              <div class="flex justify-end gap-2 pt-2"><button type="button" onclick="closeModal()" class="px-3 py-1 bg-slate-200 rounded">取消</button><button type="submit" class="px-3 py-1 bg-indigo-600 text-white rounded font-bold">儲存</button></div>
+            </form>
+          </div>
+        `;
+      }
+
+      // 車輛用車登記彈窗
+      if (windowState.activeModal === 'vehLogModal') {
+        const m = windowState.modalData;
+        return `
+          <div class="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
+            <form onsubmit="handleSaveVehLogSubmit(event)" class="bg-white rounded-2xl max-w-sm w-full p-6 space-y-3 text-xs">
+              <h3 class="font-bold text-sm">📝 公務車出車/還車登記</h3>
+              <div>
+                <label>動作類型</label>
+                <select id="log-type" class="w-full p-2 border rounded font-bold">
+                  <option value="出車登記">出車登記 (使用中)</option>
+                  <option value="還車登記">還車登記 (含加油/里程)</option>
+                  <option value="保養紀錄">保養紀錄</option>
+                </select>
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <div><label>出發里程</label><input type="number" id="log-start-mil" required value="${m.startMileage}" class="w-full p-2 border rounded" /></div>
+                <div><label>還車里程</label><input type="number" id="log-end-mil" value="${m.endMileage}" class="w-full p-2 border rounded" /></div>
+              </div>
+              <div><label>目的地</label><input type="text" id="log-dest" required placeholder="例: 台北分店" class="w-full p-2 border rounded" /></div>
+              <div><label>用車事由</label><input type="text" id="log-reason" required placeholder="例: 採購食材" class="w-full p-2 border rounded" /></div>
+              <div class="grid grid-cols-2 gap-2">
+                <div><label>加油量 (公升)</label><input type="number" step="0.1" id="log-fuel" value="${m.fuelAmount}" class="w-full p-2 border rounded" /></div>
+                <div><label>加油費用 ($)</label><input type="number" id="log-cost" value="${m.fuelCost}" class="w-full p-2 border rounded" /></div>
+              </div>
+              <div><label>備註 / 保養細節</label><input type="text" id="log-note" placeholder="例: 更換機油" class="w-full p-2 border rounded" /></div>
+              <div class="flex justify-end gap-2 pt-2"><button type="button" onclick="closeModal()" class="px-3 py-1 bg-slate-200 rounded">取消</button><button type="submit" class="px-3 py-1 bg-indigo-600 text-white rounded font-bold">確定送出</button></div>
+            </form>
+          </div>
+        `;
+      }
+      return '';
+    }
+
+    // --- 主渲染函數 ---
+    function render() {
+      const app = document.getElementById('app');
+      if (!app) return;
+
+      if (!windowState.currentUser) {
+        // 簡易登入頁面
+        app.innerHTML = `
+          <div class="min-h-screen flex items-center justify-center p-4 bg-slate-900">
+            <div class="bg-white p-6 rounded-2xl max-w-sm w-full space-y-3 text-xs">
+              <h2 class="font-black text-base text-center">全錸蒔管理系統登入</h2>
+              <select id="login-name" class="w-full p-2 border rounded font-bold">
+                ${windowState.employees.map(e => `<option value="${e.name}">${e.name} (${e.role})</option>`).join('')}
+              </select>
+              <button onclick="windowState.currentUser=windowState.employees.find(e=>e.name===document.getElementById('login-name').value) || windowState.employees[0]; render();" class="w-full bg-amber-400 py-2.5 rounded font-black">登入系統</button>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      let content = '';
+      switch (windowState.activeModule) {
+        case 'announcements': content = renderAnnouncements(); break;
+        case 'attendance': content = renderAttendance(); break;
+        case 'vehicles': content = renderVehicles(); break;
+        case 'hrRoster': content = renderHrRoster(); break;
+        default: content = `<div class="bg-white p-6 rounded-xl shadow">目前模組載入中或正在完善...</div>`;
+      }
+
+      app.innerHTML = `
+        <div class="max-w-5xl mx-auto min-h-screen bg-slate-50 flex flex-col">
+          ${renderHeader()}
+          <main class="flex-1 p-4">${content}</main>
+        </div>
+        ${renderModals()}
+      `;
+    }
+
+    // 初始化執行
+    initFirebaseSync();
   </script>
 </body>
 </html>
