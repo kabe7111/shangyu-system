@@ -155,7 +155,6 @@
       modalData: {}
     };
 
-    // 精確 2026 全年農曆對照與初二、十六拜拜提醒引擎
     function getLunarDate(dateObj) {
       const y = dateObj.getFullYear();
       const m = dateObj.getMonth() + 1;
@@ -638,15 +637,21 @@
     };
 
     window.executeClockAction = (type) => {
-      if (windowState.clockMode === 'businessTrip' && !windowState.tripReason.trim()) {
+      const reasonInput = document.getElementById('trip-reason-input');
+      if (reasonInput) {
+        windowState.tripReason = reasonInput.value.trim();
+      }
+
+      if (windowState.clockMode === 'businessTrip' && !windowState.tripReason) {
         return showToast('⚠️ 請務必填寫外勤地點與事由！', 'warning');
       }
+
       const timeStr = new Date().toLocaleTimeString('zh-TW', { hour12: false }).slice(0, 5);
       const isLate = type === 'in' && timeStr > '09:00';
 
       let hoursWorked = 0.0;
       let otHours = 0.0;
-      const existingIn = windowState.clockRecords.find(c => c.name === windowState.currentUser.name && c.date === todayStr && c.clockIn !== '--:--');
+      const existingIn = windowState.clockRecords.find(c => c.name === windowState.currentUser.name && c.date === todayStr && c.clockIn !== '--:--' && !c.clockIn.includes('未打卡') && !c.clockIn.includes('未到'));
 
       if (type === 'out' && existingIn) {
         const [inH, inM] = existingIn.clockIn.split(':').map(Number);
@@ -667,6 +672,7 @@
       });
       saveStateToCloud();
       showToast(`🎉 【${windowState.currentUser.name}】打卡成功！(工時：${hoursWorked}h)`);
+      render();
     };
 
     window.openEditClockModal = (recordId) => {
@@ -905,39 +911,73 @@
       saveStateToCloud();
       windowState.activeModal = null;
       showToast('✅ 已更新考核評分與評語！');
+      render();
     };
+
+    function calculateEmpPerformanceMetrics(empName) {
+      const uniqueRecords = getUniqueClockRecords();
+      const { days } = getMonthDaysData(windowState.scheduleYear, windowState.scheduleMonth);
+      const targetMonthPrefix = `${windowState.scheduleYear}-${String(windowState.scheduleMonth).padStart(2,'0')}`;
+
+      const empTasks = windowState.tasks.filter(t => 
+        t.assignees.includes(empName) && t.date.startsWith(targetMonthPrefix)
+      );
+      const completedTaskCount = empTasks.filter(t => t.status === '已完成').length;
+      const uncompletedTaskCount = empTasks.filter(t => t.status !== '已完成' && t.date <= todayStr).length;
+
+      let missingPunchCount = 0;
+      let missingOutCount = 0;
+      let lateCount = 0;
+
+      days.forEach(m => {
+        if (m.dateStr <= todayStr && m.dateStr.startsWith(targetMonthPrefix)) {
+          const shift = getStaffShiftOnDate(empName, m.dateStr);
+          const isWorking = ['上班', '加班', '特半', '特一'].includes(shift);
+          if (isWorking) {
+            const rec = uniqueRecords.find(c => c.name === empName && c.date === m.dateStr);
+            if (!rec || rec.clockIn === '--:--' || rec.clockIn.includes('未打卡') || rec.clockIn.includes('未到')) {
+              missingPunchCount += 1;
+            } else {
+              if (rec.clockIn > '09:00') lateCount += 1;
+              if (!rec.clockOut || rec.clockOut === '--:--') missingOutCount += 1;
+            }
+          }
+        }
+      });
+
+      const customEval = windowState.evaluations[empName] || {
+        efficiencyScore: 3, tripCoopScore: 3, sanitationScore: 3, knowledgeScore: 3,
+        comment: '整體表現良好，勤惰正常。'
+      };
+
+      const taskBonus = completedTaskCount * 2;
+      const taskPenalty = uncompletedTaskCount * 3;
+      const attendancePenalty = (missingPunchCount * 10) + (lateCount * 5) + (missingOutCount * 3);
+
+      const baseStarsScore = 70 + (customEval.efficiencyScore * 2) + (customEval.tripCoopScore * 2) + (customEval.sanitationScore * 2) + (customEval.knowledgeScore * 2);
+      const totalScore = Math.min(100, Math.max(0, baseStarsScore + taskBonus - taskPenalty - attendancePenalty));
+
+      return {
+        ...customEval,
+        completedTaskCount,
+        uncompletedTaskCount,
+        missingPunchCount,
+        lateCount,
+        missingOutCount,
+        taskBonus,
+        taskPenalty,
+        attendancePenalty,
+        totalScore
+      };
+    }
 
     window.archiveCurrentEvaluation = () => {
       if (!windowState.isAdmin) return showToast('🔒 請先解鎖管理員權限才能執行存檔！', 'warning');
       const archiveKey = `${windowState.scheduleYear}-${windowState.scheduleMonth}`;
       
-      const uniqueRecords = getUniqueClockRecords();
       const currentMonthEvals = {};
-
       windowState.employees.forEach(emp => {
-        const empTasks = windowState.tasks.filter(t => t.assignees.includes(emp.name));
-        const completedTaskCount = empTasks.filter(t => t.status === '已完成').length;
-        const uncompletedTaskCount = empTasks.filter(t => t.status !== '已完成' && t.date <= todayStr).length;
-        const empClocks = uniqueRecords.filter(c => c.name === emp.name);
-        const lateCount = empClocks.filter(c => c.status.includes('遲到')).length;
-
-        const customEval = windowState.evaluations[emp.name] || {
-          efficiencyScore: 3, tripCoopScore: 3, sanitationScore: 3, knowledgeScore: 3,
-          comment: '工作表現正常。'
-        };
-
-        const calculatedScore = Math.min(100, Math.max(0,
-          70 + (customEval.efficiencyScore * 2) + (customEval.tripCoopScore * 2) + (customEval.sanitationScore * 2) + (customEval.knowledgeScore * 2) + (completedTaskCount * 2) - (lateCount * 5) - (uncompletedTaskCount * 3)
-        ));
-
-        currentMonthEvals[emp.name] = {
-          role: emp.role,
-          ...customEval,
-          completedTaskCount,
-          uncompletedTaskCount,
-          lateCount,
-          totalScore: calculatedScore
-        };
+        currentMonthEvals[emp.name] = calculateEmpPerformanceMetrics(emp.name);
       });
 
       if (!windowState.evalArchives) windowState.evalArchives = {};
@@ -1039,7 +1079,7 @@
               currDate.setMonth(currDate.getMonth() + 1);
             } else if (task.repeat === '每兩個月') {
               currDate.setMonth(currDate.getMonth() + 2);
-            } else if (task.repeat === '每三個月') {
+            } else if (task.repeat === '每三個') {
               currDate.setMonth(currDate.getMonth() + 3);
             } else if (task.repeat === '每半年') {
               currDate.setMonth(currDate.getMonth() + 6);
@@ -1257,9 +1297,11 @@
       const v = windowState.vehicles.find(item => item.id === vehicleId);
       if (!v) return;
       const activeLog = windowState.vehicleLogs.find(l => l.vehicleId === vehicleId && l.status === '使用中');
+      const currentTimeStr = new Date().toLocaleTimeString('zh-TW', { hour12: false }).slice(0, 5);
       windowState.modalData = {
         vehicleId: v.id,
         logId: activeLog ? activeLog.id : null,
+        returnTime: currentTimeStr,
         startMileage: v.currentMileage,
         endMileage: v.currentMileage,
         fuelLiters: '',
@@ -1319,6 +1361,7 @@
       e.preventDefault();
       const vId = windowState.modalData.vehicleId;
       const logId = windowState.modalData.logId;
+      const actualReturnTime = document.getElementById('vr-return-time').value || new Date().toLocaleTimeString('zh-TW', { hour12: false }).slice(0, 5);
       const endMil = Number(document.getElementById('vr-end-mil').value) || 0;
       const fuelLiters = Number(document.getElementById('vr-fuel-liters').value) || 0;
       const fuelCost = Number(document.getElementById('vr-fuel-cost').value) || 0;
@@ -1345,6 +1388,7 @@
       if (logId) {
         const log = windowState.vehicleLogs.find(l => l.id === logId);
         if (log) {
+          log.endTime = actualReturnTime;
           log.endMileage = endMil;
           log.fuelLiters = fuelLiters;
           log.fuelCost = fuelCost;
@@ -1356,7 +1400,7 @@
 
       saveStateToCloud();
       windowState.activeModal = null;
-      showToast(`🎉 公務車已成功還車！總行駛 ${endMil - (windowState.modalData.startMileage)} 公里`);
+      showToast(`🎉 公務車已成功還車 (${actualReturnTime})！總行駛 ${endMil - (windowState.modalData.startMileage)} 公里`);
       render();
     };
 
@@ -1478,8 +1522,7 @@
 
     window.printSingleEmployeeEval = (empName) => {
       const emp = windowState.employees.find(e => e.name === empName);
-      const customEval = windowState.evaluations[empName] || { efficiencyScore: 3, tripCoopScore: 3, sanitationScore: 3, knowledgeScore: 3, comment: '工作表現正常。' };
-      const score = 70 + (customEval.efficiencyScore * 2) + (customEval.tripCoopScore * 2) + (customEval.sanitationScore * 2) + (customEval.knowledgeScore * 2);
+      const metrics = calculateEmpPerformanceMetrics(empName);
 
       const printArea = document.getElementById('print-modal-area');
       printArea.innerHTML = `
@@ -1487,15 +1530,17 @@
           <h1 style="font-size: 22px; font-weight: 900; text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px;">全錸蒔國際餐飲 - 員工個人績效考核報告</h1>
           <div style="display: flex; justify-content: space-between; background: #f1f5f9; padding: 12px; border: 1px solid #666; margin-bottom: 15px; font-weight: bold; font-size: 13px;">
             <div>同仁姓名：${empName} (${emp?.role || '員工'})</div>
-            <div>最終評定總分：<span style="color: #e11d48; font-size: 16px;">${score} 分</span></div>
+            <div>最終評定總分：<span style="color: #e11d48; font-size: 16px;">${metrics.totalScore} 分</span></div>
           </div>
           <table style="width: 100%; font-size: 12px; border-collapse: collapse; border: 1px solid #666;">
             <tbody>
-              <tr><td style="padding: 10px; background: #f1f5f9; font-weight: bold; border: 1px solid #666; width: 25%;">⚡ 工作效率</td><td style="padding: 10px; border: 1px solid #666;">${'⭐'.repeat(customEval.efficiencyScore)}</td></tr>
-              <tr><td style="padding: 10px; background: #f1f5f9; font-weight: bold; border: 1px solid #666;">🚗 出差配合</td><td style="padding: 10px; border: 1px solid #666;">${'⭐'.repeat(customEval.tripCoopScore)}</td></tr>
-              <tr><td style="padding: 10px; background: #f1f5f9; font-weight: bold; border: 1px solid #666;">🧹 食品衛生</td><td style="padding: 10px; border: 1px solid #666;">${'⭐'.repeat(customEval.sanitationScore)}</td></tr>
-              <tr><td style="padding: 10px; background: #f1f5f9; font-weight: bold; border: 1px solid #666;">📚 專業知識</td><td style="padding: 10px; border: 1px solid #666;">${'⭐'.repeat(customEval.knowledgeScore)}</td></tr>
-              <tr><td style="padding: 10px; background: #f1f5f9; font-weight: bold; border: 1px solid #666;">📝 主管評語</td><td style="padding: 10px; border: 1px solid #666; line-height: 1.6;">${customEval.comment}</td></tr>
+              <tr><td style="padding: 10px; background: #f1f5f9; font-weight: bold; border: 1px solid #666; width: 25%;">⚡ 工作效率</td><td style="padding: 10px; border: 1px solid #666;">${'⭐'.repeat(metrics.efficiencyScore)}</td></tr>
+              <tr><td style="padding: 10px; background: #f1f5f9; font-weight: bold; border: 1px solid #666;">🚗 出差配合</td><td style="padding: 10px; border: 1px solid #666;">${'⭐'.repeat(metrics.tripCoopScore)}</td></tr>
+              <tr><td style="padding: 10px; background: #f1f5f9; font-weight: bold; border: 1px solid #666;">🧹 食品衛生</td><td style="padding: 10px; border: 1px solid #666;">${'⭐'.repeat(metrics.sanitationScore)}</td></tr>
+              <tr><td style="padding: 10px; background: #f1f5f9; font-weight: bold; border: 1px solid #666;">📚 專業知識</td><td style="padding: 10px; border: 1px solid #666;">${'⭐'.repeat(metrics.knowledgeScore)}</td></tr>
+              <tr><td style="padding: 10px; background: #f1f5f9; font-weight: bold; border: 1px solid #666;">✅ 任務表現</td><td style="padding: 10px; border: 1px solid #666;">已完成 ${metrics.completedTaskCount} 項 (+${metrics.taskBonus}分) / 未完成 ${metrics.uncompletedTaskCount} 項 (-${metrics.taskPenalty}分)</td></tr>
+              <tr><td style="padding: 10px; background: #f1f5f9; font-weight: bold; border: 1px solid #666;">🚨 勤惰扣分</td><td style="padding: 10px; border: 1px solid #666;">漏打卡 ${metrics.missingPunchCount} 次, 遲到 ${metrics.lateCount} 次, 未簽退 ${metrics.missingOutCount} 次 (總扣 -${metrics.attendancePenalty}分)</td></tr>
+              <tr><td style="padding: 10px; background: #f1f5f9; font-weight: bold; border: 1px solid #666;">📝 主管評語</td><td style="padding: 10px; border: 1px solid #666; line-height: 1.6;">${metrics.comment}</td></tr>
             </tbody>
           </table>
         </div>
@@ -1517,11 +1562,9 @@
             <thead>
               <tr style="background: #f1f5f9; font-weight: bold;">
                 <th style="padding: 8px; border: 1px solid #666;">月份</th>
-                <th style="padding: 8px; border: 1px solid #666;">工作效率</th>
-                <th style="padding: 8px; border: 1px solid #666;">出差配合</th>
-                <th style="padding: 8px; border: 1px solid #666;">食品衛生</th>
-                <th style="padding: 8px; border: 1px solid #666;">專業知識</th>
-                <th style="padding: 8px; border: 1px solid #666;">總分</th>
+                <th style="padding: 8px; border: 1px solid #666;">完成任務</th>
+                <th style="padding: 8px; border: 1px solid #666;">未完成/遲到/漏打卡</th>
+                <th style="padding: 8px; border: 1px solid #666;">最終總分</th>
                 <th style="padding: 8px; border: 1px solid #666; text-align: left;">主管評語</th>
               </tr>
             </thead>
@@ -1532,10 +1575,8 @@
                 return `
                   <tr>
                     <td style="padding: 8px; border: 1px solid #666; font-weight: bold;">${year}年 ${m}月</td>
-                    <td style="padding: 8px; border: 1px solid #666;">${data ? `${data.efficiencyScore}⭐` : '-'}</td>
-                    <td style="padding: 8px; border: 1px solid #666;">${data ? `${data.tripCoopScore}⭐` : '-'}</td>
-                    <td style="padding: 8px; border: 1px solid #666;">${data ? `${data.sanitationScore}⭐` : '-'}</td>
-                    <td style="padding: 8px; border: 1px solid #666;">${data ? `${data.knowledgeScore}⭐` : '-'}</td>
+                    <td style="padding: 8px; border: 1px solid #666;">${data ? `${data.completedTaskCount}項` : '-'}</td>
+                    <td style="padding: 8px; border: 1px solid #666;">${data ? `未完${data.uncompletedTaskCount}/遲${data.lateCount}/漏打${data.missingPunchCount}` : '-'}</td>
                     <td style="padding: 8px; border: 1px solid #666; font-family: monospace; font-weight: bold; color: #4338ca;">${data ? `${data.totalScore}分` : '未存檔'}</td>
                     <td style="padding: 8px; border: 1px solid #666; text-align: left;">${data ? data.comment : '-'}</td>
                   </tr>
@@ -1558,7 +1599,7 @@
       const empClocks = windowState.clockRecords.filter(c => c.name === targetEmp.name && c.date.startsWith(`${windowState.scheduleYear}-${String(windowState.scheduleMonth).padStart(2,'0')}`));
       const totalWorkH = empClocks.reduce((acc, c) => acc + (c.hoursWorked || 0), 0).toFixed(1);
       const totalOTH = empClocks.reduce((acc, c) => acc + (c.otHours || 0), 0).toFixed(1);
-      const lateCount = empClocks.filter(c => c.status.includes('遲到')).length;
+      const lateCount = empClocks.filter(c => c.status.includes('遲到') || c.status.includes('未打卡') || c.status.includes('未到')).length;
 
       const printArea = document.getElementById('print-modal-area');
       printArea.innerHTML = `
@@ -1606,7 +1647,7 @@
           <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; background: #f1f5f9; padding: 8px; border: 1px solid #94a3b8; font-weight: bold; text-align: center; margin-bottom: 25px;">
             <div>本月總出勤工時：<span style="color: #4338ca; font-family: monospace;">${totalWorkH} 小時</span></div>
             <div>本月累計加班：<span style="color: #b45309; font-family: monospace;">${totalOTH} 小時</span></div>
-            <div>本月遲到次數：<span style="color: #e11d48; font-family: monospace;">${lateCount} 次</span></div>
+            <div>本月異常次數：<span style="color: #e11d48; font-family: monospace;">${lateCount} 次</span></div>
           </div>
 
           <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; text-align: center; font-weight: bold;">
@@ -1625,27 +1666,27 @@
       const printArea = document.getElementById('print-modal-area');
       printArea.innerHTML = `
         <div style="padding: 20px; font-family: sans-serif; color: #000; background: #fff; max-width: 210mm; margin: 0 auto;">
-          <h1 style="font-size: 20px; font-weight: 900; text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px;">全錸蒔國際餐飲 - 每月遲到與考勤統計報表</h1>
+          <h1 style="font-size: 20px; font-weight: 900; text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px;">全錸蒔國際餐飲 - 每月遲到與未打卡扣分統計報表</h1>
           <table style="width: 100%; font-size: 11px; text-align: left; border-collapse: collapse; border: 1px solid #666;">
             <thead>
               <tr style="background: #f1f5f9; font-weight: bold;">
                 <th style="padding: 8px; border: 1px solid #666;">工號</th>
                 <th style="padding: 8px; border: 1px solid #666;">同仁姓名</th>
                 <th style="padding: 8px; border: 1px solid #666;">職稱</th>
-                <th style="padding: 8px; border: 1px solid #666;">遲到總次數</th>
-                <th style="padding: 8px; border: 1px solid #666;">說明</th>
+                <th style="padding: 8px; border: 1px solid #666;">未打卡/遲到次數</th>
+                <th style="padding: 8px; border: 1px solid #666;">扣分說明</th>
               </tr>
             </thead>
             <tbody>
               ${windowState.employees.map(e => {
-                const count = uniqueRecords.filter(c => c.name === e.name && c.status.includes('遲到')).length;
+                const count = uniqueRecords.filter(c => c.name === e.name && (c.status.includes('遲到') || c.status.includes('未打卡') || c.status.includes('未到'))).length;
                 return `
                   <tr>
                     <td style="padding: 8px; border: 1px solid #666; font-family: monospace;">${e.id}</td>
                     <td style="padding: 8px; border: 1px solid #666; font-weight: bold;">${e.name}</td>
                     <td style="padding: 8px; border: 1px solid #666;">${e.role}</td>
                     <td style="padding: 8px; border: 1px solid #666; font-family: monospace; color: #e11d48; font-weight: 900;">${count} 次</td>
-                    <td style="padding: 8px; border: 1px solid #666;">${count > 0 ? `扣分 ${count * 5} 分` : '🟢 無扣分'}</td>
+                    <td style="padding: 8px; border: 1px solid #666;">${count > 0 ? `未打卡/遲到扣分 ${count * 10} 分` : '🟢 無扣分'}</td>
                   </tr>
                 `;
               }).join('')}
@@ -1799,6 +1840,220 @@
       });
 
       return { days, firstDayOffset, fullSchedules, dailyWorkingCounts, totalRedDays };
+    }
+
+    function renderEvaluations() {
+      const activeEmps = windowState.employees.filter(e => e.status !== '離職');
+      const archiveKey = `${windowState.scheduleYear}-${windowState.scheduleMonth}`;
+      const archivedMonthData = windowState.evalArchives?.[archiveKey];
+
+      return `
+        <div class="space-y-5">
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <div class="flex items-center space-x-2">
+                <span class="px-2.5 py-1 bg-indigo-100 text-indigo-800 text-xs font-black rounded-lg">自動計算連結</span>
+                <h2 class="font-extrabold text-slate-900 text-lg">員工月度與即時績效考核系統</h2>
+              </div>
+              <p class="text-xs text-slate-500 mt-1">
+                得分公式：基礎指標 (70分) + 主管4項評分 (+2~10分) + 任務完成 <strong class="text-emerald-600">(+2分/項)</strong> - 任務未完成 <strong class="text-rose-600">(-3分/項)</strong> - 遲到 <strong class="text-rose-600">(-5分/次)</strong> - 漏打卡 <strong class="text-rose-600">(-10分/次)</strong>
+              </p>
+            </div>
+
+            <div class="flex items-center space-x-3 w-full md:w-auto justify-between md:justify-end">
+              <div class="flex items-center space-x-1 bg-slate-100 p-1.5 rounded-xl border border-slate-200">
+                <button onclick="shiftMonth(-1)" class="px-3 py-1 bg-white hover:bg-slate-50 rounded-lg text-xs font-extrabold text-slate-700 shadow-xs transition-all cursor-pointer">‹ 上月</button>
+                <span class="font-black text-indigo-950 text-xs px-3 font-mono">${windowState.scheduleYear} 年 ${windowState.scheduleMonth} 月</span>
+                <button onclick="shiftMonth(1)" class="px-3 py-1 bg-white hover:bg-slate-50 rounded-lg text-xs font-extrabold text-slate-700 shadow-xs transition-all cursor-pointer">下月 ›</button>
+              </div>
+
+              ${windowState.isAdmin ? `
+                <button onclick="archiveCurrentEvaluation()" class="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white px-4 py-2 rounded-xl text-xs font-black shadow-md cursor-pointer flex items-center gap-1.5 transition-all">
+                  <span>💾</span> 封存月度考核
+                </button>
+              ` : ''}
+            </div>
+          </div>
+
+          ${archivedMonthData ? `
+            <div class="bg-emerald-500/10 border border-emerald-500/30 p-3.5 rounded-2xl text-xs text-emerald-900 font-extrabold flex justify-between items-center shadow-xs">
+              <span class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                【${windowState.scheduleYear} 年 ${windowState.scheduleMonth} 月】月度考核紀錄已完成封存！
+              </span>
+              <span class="font-mono text-[11px] text-emerald-700">可至「第九點、年度彙整」調閱</span>
+            </div>
+          ` : ''}
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            ${activeEmps.map(emp => {
+              const metrics = emp ? calculateEmpPerformanceMetrics(emp.name) : { totalScore: 70, completedTaskCount: 0, uncompletedTaskCount: 0, missingPunchCount: 0, lateCount: 0, missingOutCount: 0, taskBonus: 0, taskPenalty: 0, attendancePenalty: 0, efficiencyScore: 3, tripCoopScore: 3, sanitationScore: 3, knowledgeScore: 3, comment: '' };
+              
+              let scoreBadgeBg = 'bg-indigo-600 text-white shadow-indigo-200';
+              if (metrics.totalScore >= 90) scoreBadgeBg = 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-emerald-200';
+              else if (metrics.totalScore < 60) scoreBadgeBg = 'bg-gradient-to-r from-rose-500 to-red-600 text-white shadow-rose-200';
+
+              return `
+                <div class="bg-white rounded-3xl border border-slate-200 shadow-md hover:shadow-xl transition-all duration-300 flex flex-col justify-between overflow-hidden relative group">
+                  <div class="p-5 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white flex justify-between items-start">
+                    <div class="space-y-1">
+                      <div class="flex items-center space-x-2">
+                        <h3 class="font-black text-slate-900 text-lg tracking-tight">${emp.name}</h3>
+                        <span class="px-2.5 py-0.5 bg-slate-200/70 text-slate-700 font-mono font-bold text-[10px] rounded-full border border-slate-300/50">${emp.id}</span>
+                      </div>
+                      <p class="text-xs text-slate-500 font-extrabold">${emp.role}</p>
+                    </div>
+
+                    <div class="flex items-center space-x-2">
+                      <div class="px-3.5 py-1.5 rounded-2xl text-xs font-black font-mono shadow-md ${scoreBadgeBg}">
+                        ${metrics.totalScore} 分
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="p-5 space-y-4 text-xs flex-1">
+                    <div>
+                      <div class="flex justify-between items-center mb-2">
+                        <span class="font-black text-slate-700 text-[11px] flex items-center gap-1">⭐ 主管基礎專業評分 (滿分30分)</span>
+                        ${windowState.isAdmin ? `
+                          <button onclick="openEditEvalModal('${emp.name}')" class="text-indigo-600 hover:text-indigo-800 font-extrabold text-[11px] cursor-pointer hover:underline">
+                            ✏️ 調整評分
+                          </button>
+                        ` : ''}
+                      </div>
+                      <div class="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-2xl border border-slate-200/80">
+                        <div class="flex justify-between items-center">
+                          <span class="text-slate-600 font-bold">⚡ 工作效率：</span>
+                          <span class="text-amber-500 font-bold">${'★'.repeat(metrics.efficiencyScore)}</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                          <span class="text-slate-600 font-bold">🚗 出差配合：</span>
+                          <span class="text-amber-500 font-bold">${'★'.repeat(metrics.tripCoopScore)}</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                          <span class="text-slate-600 font-bold">🧹 食品衛生：</span>
+                          <span class="text-amber-500 font-bold">${'★'.repeat(metrics.sanitationScore)}</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                          <span class="text-slate-600 font-bold">📚 專業知識：</span>
+                          <span class="text-amber-500 font-bold">${'★'.repeat(metrics.knowledgeScore)}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="space-y-2">
+                      <span class="font-black text-slate-700 text-[11px] block">🔗 系統自動連結指標 (任務與考勤)</span>
+                      
+                      <div class="grid grid-cols-2 gap-2">
+                        <div class="p-2.5 rounded-2xl bg-emerald-50/80 border border-emerald-200/80 flex flex-col justify-center">
+                          <span class="text-[10px] text-emerald-800 font-bold">✅ 已完成任務</span>
+                          <div class="flex justify-between items-baseline mt-0.5">
+                            <strong class="text-sm font-mono font-black text-emerald-700">${metrics.completedTaskCount} 項</strong>
+                            <span class="text-[10px] text-emerald-700 font-black">+${metrics.taskBonus} 分</span>
+                          </div>
+                        </div>
+
+                        <div class="p-2.5 rounded-2xl bg-rose-50/80 border border-rose-200/80 flex flex-col justify-center">
+                          <span class="text-[10px] text-rose-800 font-bold">❌ 逾期/未完成</span>
+                          <div class="flex justify-between items-baseline mt-0.5">
+                            <strong class="text-sm font-mono font-black text-rose-700">${metrics.uncompletedTaskCount} 項</strong>
+                            <span class="text-[10px] text-rose-700 font-black">-${metrics.taskPenalty} 分</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="p-2.5 rounded-2xl bg-amber-50/80 border border-amber-200/80 space-y-1">
+                        <div class="flex justify-between items-center text-[10px] text-amber-900 font-bold">
+                          <span>🚨 本月勤惰扣分統計：</span>
+                          <strong class="text-rose-600 font-mono text-xs font-black">-${metrics.attendancePenalty} 分</strong>
+                        </div>
+                        <div class="flex justify-around text-[10px] text-slate-700 font-bold pt-1 border-t border-amber-200/60 font-mono">
+                          <span>漏打卡: <strong class="${metrics.missingPunchCount > 0 ? 'text-rose-600 font-black' : 'text-slate-600'}">${metrics.missingPunchCount}</strong> 次</span>
+                          <span>遲到: <strong class="${metrics.lateCount > 0 ? 'text-rose-600 font-black' : 'text-slate-600'}">${metrics.lateCount}</strong> 次</span>
+                          <span>未簽退: <strong class="${metrics.missingOutCount > 0 ? 'text-rose-600 font-black' : 'text-slate-600'}">${metrics.missingOutCount}</strong> 次</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="bg-slate-50 p-3 rounded-2xl border border-slate-200/80 text-xs space-y-1">
+                      <span class="font-black text-slate-800 block text-[11px]">💬 主管綜合評語：</span>
+                      <p class="text-slate-600 leading-relaxed italic">${metrics.comment || '無特記評語。'}</p>
+                    </div>
+
+                  </div>
+
+                  <div class="px-5 py-3.5 bg-slate-50 border-t border-slate-100 flex justify-between items-center">
+                    <span class="text-[10px] text-slate-400 font-mono font-bold">QuanLaiShi HR System</span>
+                    <button onclick="printSingleEmployeeEval('${emp.name}')" class="bg-slate-800 hover:bg-slate-900 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition-all shadow-xs flex items-center gap-1">
+                      <span>🖨️</span> 列印個人考核單
+                    </button>
+                  </div>
+
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderAnnualEvaluation() {
+      const activeEmps = windowState.employees.filter(e => e.status !== '離職');
+      const archives = windowState.evalArchives || {};
+      const year = windowState.selectedAnnualYear;
+      const empName = windowState.selectedAnnualEmp;
+
+      return `
+        <div class="space-y-4">
+          <div class="bg-white p-5 rounded-2xl border flex flex-col sm:flex-row justify-between items-center gap-3 shadow-xs">
+            <div>
+              <h2 class="font-extrabold text-slate-900 text-base">📈 年度績效考核歷史彙整總表</h2>
+              <p class="text-xs text-slate-500">檢視同仁全年度各月份之績效表現與評分變化趨勢，支援一鍵列印年度總報告。</p>
+            </div>
+            <div class="flex items-center space-x-2">
+              <select onchange="windowState.selectedAnnualEmp = this.value; render();" class="p-2 bg-slate-50 border rounded-xl font-bold text-xs text-indigo-900 cursor-pointer">
+                ${activeEmps.map(e => `<option value="${e.name}" ${empName === e.name ? 'selected' : ''}>${e.name} (${e.role})</option>`).join('')}
+              </select>
+              <select onchange="windowState.selectedAnnualYear = Number(this.value); render();" class="p-2 bg-slate-50 border rounded-xl font-bold text-xs font-mono text-indigo-900 cursor-pointer">
+                ${[2025, 2026, 2027].map(y => `<option value="${y}" ${year === y ? 'selected' : ''}>${y} 年</option>`).join('')}
+              </select>
+              <button onclick="printAnnualEvalReport()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold cursor-pointer shadow">
+                🖨️ 列印年度彙整總表
+              </button>
+            </div>
+          </div>
+
+          <div class="bg-white p-5 rounded-2xl border shadow-md overflow-x-auto">
+            <h3 class="font-extrabold text-slate-900 text-sm mb-3">📋【${year} 年度】${empName} 各月考核封存紀錄</h3>
+            <table class="w-full text-xs text-center border-collapse border">
+              <thead class="bg-slate-100 border-b font-bold">
+                <tr>
+                  <th class="p-2.5 border-r">月份</th>
+                  <th class="p-2.5 border-r">完成任務</th>
+                  <th class="p-2.5 border-r">未完成/遲到/漏打卡</th>
+                  <th class="p-2.5 border-r">最終總分</th>
+                  <th class="p-2.5 border-r text-left">主管評語</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${Array.from({length: 12}, (_, i) => i + 1).map(m => {
+                  const key = `${year}-${m}`;
+                  const data = archives[key]?.[empName];
+                  return `
+                    <tr class="border-b hover:bg-slate-50">
+                      <td class="p-2.5 border-r font-mono font-bold">${year}年 ${m}月</td>
+                      <td class="p-2.5 border-r text-emerald-700 font-bold">${data ? `${data.completedTaskCount}項` : '-'}</td>
+                      <td class="p-2.5 border-r text-rose-600">${data ? `未完${data.uncompletedTaskCount}/遲${data.lateCount}/漏打${data.missingPunchCount}` : '-'}</td>
+                      <td class="p-2.5 border-r font-mono font-black text-indigo-700">${data ? `${data.totalScore}分` : '<span class="text-slate-400 font-normal">未封存</span>'}</td>
+                      <td class="p-2.5 border-r text-left">${data ? data.comment : '-'}</td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
     }
 
     function renderLoginView() {
@@ -1962,7 +2217,7 @@
       const uniqueRecords = getUniqueClockRecords();
       const totalHoursAcc = uniqueRecords.reduce((acc, c) => acc + (c.hoursWorked || 0), 0).toFixed(1);
       const totalOTHoursAcc = uniqueRecords.reduce((acc, c) => acc + (c.otHours || 0), 0).toFixed(1);
-      const totalLate = uniqueRecords.filter(c => c.status.includes('遲到')).length;
+      const totalLate = uniqueRecords.filter(c => c.status.includes('遲到') || c.status.includes('未打卡') || c.status.includes('未到')).length;
       const lateRate = uniqueRecords.length > 0 ? ((totalLate / uniqueRecords.length) * 100).toFixed(1) : '0.0';
       const tripCount = uniqueRecords.filter(c => c.location.includes('外勤')).length;
       const completedTasks = windowState.tasks.filter(t => t.status === '已完成').length;
@@ -1982,7 +2237,7 @@
                 <span class="text-[10px] text-amber-300 font-bold block">(${totalOTHoursAcc}h 加班)</span>
               </div>
               <div class="bg-white/10 p-2.5 rounded-xl border border-white/10">
-                <span class="text-slate-300 block text-[10px]">🚨 全店勤惰遲到率</span>
+                <span class="text-slate-300 block text-[10px]">🚨 全店勤惰異常率</span>
                 <strong class="text-lg text-amber-300 font-mono">${lateRate}% (${totalLate}次)</strong>
               </div>
               <div class="bg-white/10 p-2.5 rounded-xl border border-white/10">
@@ -2348,7 +2603,7 @@
               ${windowState.clockMode === 'businessTrip' ? `
                 <div>
                   <label class="block text-amber-300 font-bold mb-1">🚗 外勤地點與事由說明 (請在此自由填寫)</label>
-                  <input type="text" placeholder="請在此填寫外勤地點與事由..." value="${windowState.tripReason}" oninput="windowState.tripReason = this.value;" class="w-full bg-slate-800 text-white p-3 rounded-xl border border-amber-400/60 font-bold text-xs" />
+                  <input type="text" id="trip-reason-input" placeholder="請在此填寫外勤地點與事由..." value="${windowState.tripReason}" oninput="windowState.tripReason = this.value;" class="w-full bg-slate-800 text-white p-3 rounded-xl border border-amber-400/60 font-bold text-xs" />
                 </div>
               ` : ''}
 
@@ -2405,14 +2660,31 @@
               <tbody>
                 ${days.map(m => {
                   const rec = windowState.clockRecords.filter(c => c.name === targetEmp.name && c.date === m.dateStr)[0];
+                  const shift = getStaffShiftOnDate(targetEmp.name, m.dateStr);
+                  const isWorkingShift = ['上班', '加班', '特半', '特一'].includes(shift);
+                  let displayIn = rec ? rec.clockIn : '--:--';
+                  let displayOut = rec ? rec.clockOut : '--:--';
+                  let displayLoc = rec ? rec.location : '-';
+                  let rowBadge = '';
+
+                  if (isWorkingShift && m.dateStr <= todayStr && (!rec || rec.clockIn === '--:--')) {
+                    displayIn = '⚠️ 未打卡';
+                    displayLoc = '未打卡上班 (扣分10分)';
+                    rowBadge = 'bg-rose-50/60';
+                  } else if (rec && rec.clockIn !== '--:--' && (!rec.clockOut || rec.clockOut === '--:--') && m.dateStr < todayStr) {
+                    displayOut = '⚠️ 下班未打卡';
+                    displayLoc = '未打卡下班 (扣分3分)';
+                    rowBadge = 'bg-amber-50/55';
+                  }
+
                   return `
-                    <tr class="border-b ${m.isWeekend || m.isHoliday ? 'bg-rose-50/20' : ''}">
+                    <tr class="border-b ${rowBadge || (m.isWeekend || m.isHoliday ? 'bg-rose-50/20' : '')}">
                       <td class="p-1 border-r font-mono">${windowState.scheduleMonth}/${m.day} ${m.holidayName ? `(${m.holidayName})` : ''}</td>
-                      <td class="p-1 border-r">${getStaffShiftOnDate(targetEmp.name, m.dateStr)}</td>
-                      <td class="p-1 border-r font-mono">${rec ? rec.clockIn : '--:--'}</td>
-                      <td class="p-1 border-r font-mono">${rec ? rec.clockOut : '--:--'}</td>
+                      <td class="p-1 border-r">${shift}</td>
+                      <td class="p-1 border-r font-mono font-bold ${displayIn.includes('未打卡') ? 'text-rose-600' : ''}">${displayIn}</td>
+                      <td class="p-1 border-r font-mono font-bold ${displayOut.includes('未打卡') ? 'text-amber-600' : ''}">${displayOut}</td>
                       <td class="p-1 border-r font-mono">${rec ? `${rec.hoursWorked || 0}h (${rec.otHours || 0}h加班)` : '-'}</td>
-                      <td class="p-1 border-r text-left">${rec ? rec.location : '-'}</td>
+                      <td class="p-1 border-r text-left">${displayLoc}</td>
                       ${windowState.isAdmin ? `
                         <td class="p-1 no-print">
                           ${rec ? `<button onclick="openEditClockModal(${rec.id})" class="bg-amber-400 text-slate-950 font-bold px-2 py-0.5 rounded text-[10px] cursor-pointer">✏️ 修改</button>` : '-'}
@@ -2430,29 +2702,53 @@
 
     function renderLateReport() {
       const uniqueRecords = getUniqueClockRecords();
+      const { days } = getMonthDaysData(windowState.scheduleYear, windowState.scheduleMonth);
 
       return `
         <div class="space-y-4">
           <div class="bg-white p-5 rounded-2xl border space-y-4 shadow-xs">
             <div class="flex justify-between items-center border-b pb-3">
-              <h2 class="font-extrabold text-slate-900 text-base">📊 每月遲到與考勤統計報表 (包含分鐘數)</h2>
+              <h2 class="font-extrabold text-slate-900 text-base">📊 每月未打卡與遲到扣分統計報表 (未打卡扣10分)</h2>
               <button onclick="printLateReport()" class="bg-indigo-600 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold cursor-pointer no-print">🖨️ 列印報表</button>
             </div>
             <div id="late-report-table-container">
               <table class="w-full text-xs text-left border">
                 <thead class="bg-slate-100 border-b">
-                  <tr><th class="p-2.5">工號</th><th class="p-2.5">同仁姓名</th><th class="p-2.5">職稱</th><th class="p-2.5">遲到總次數</th><th class="p-2.5">說明</th></tr>
+                  <tr><th class="p-2.5">工號</th><th class="p-2.5">同仁姓名</th><th class="p-2.5">職稱</th><th class="p-2.5">未打卡/遲到次數</th><th class="p-2.5">扣分說明</th></tr>
                 </thead>
                 <tbody>
                   ${windowState.employees.map(e => {
-                    const count = uniqueRecords.filter(c => c.name === e.name && c.status.includes('遲到')).length;
+                    const empClocks = uniqueRecords.filter(c => c.name === e.name);
+                    let missingPunchCount = 0;
+                    let missingOutCount = 0;
+                    let lateCount = 0;
+
+                    days.forEach(m => {
+                      if (m.dateStr <= todayStr) {
+                        const shift = getStaffShiftOnDate(e.name, m.dateStr);
+                        const isWorking = ['上班', '加班', '特半', '特一'].includes(shift);
+                        if (isWorking) {
+                          const rec = empClocks.filter(c => c.date === m.dateStr)[0];
+                          if (!rec || rec.clockIn === '--:--' || rec.clockIn.includes('未打卡') || rec.clockIn.includes('未到')) {
+                            missingPunchCount += 1;
+                          } else {
+                            if (rec.clockIn > '09:00') lateCount += 1;
+                            if (!rec.clockOut || rec.clockOut === '--:--') missingOutCount += 1;
+                          }
+                        }
+                      }
+                    });
+
+                    const totalAbnormals = missingPunchCount + lateCount + missingOutCount;
+                    const totalDeduction = (missingPunchCount * 10) + (lateCount * 5) + (missingOutCount * 3);
+
                     return `
                       <tr class="border-b">
                         <td class="p-2.5 font-mono">${e.id}</td>
                         <td class="p-2.5 font-bold">${e.name}</td>
                         <td class="p-2.5">${e.role}</td>
-                        <td class="p-2.5 font-mono text-rose-600 font-black">${count} 次</td>
-                        <td class="p-2.5">${count > 0 ? `扣分 ${count * 5} 分` : '🟢 無扣分'}</td>
+                        <td class="p-2.5 font-mono text-rose-600 font-black">${totalAbnormals} 次</td>
+                        <td class="p-2.5">${totalAbnormals > 0 ? `未打卡${missingPunchCount}次(扣10分)/遲到${lateCount}次/未打卡下班${missingOutCount}次 (總扣分 ${totalDeduction} 分)` : '🟢 無扣分'}</td>
                       </tr>
                     `;
                   }).join('')}
@@ -2501,7 +2797,7 @@
           <div class="bg-white p-5 rounded-2xl border flex flex-col sm:flex-row justify-between items-center gap-3 shadow-xs">
             <div>
               <h2 class="font-extrabold text-slate-900 text-base">🚗 公務車使用登記與控管系統 (驗車、保險、保養提醒)</h2>
-              <p class="text-xs text-slate-500">提示：驗車與保險剩餘30天內自動提醒；距下次保養剩餘 500 公里內自動跳出保養通知</p>
+              <p class="text-xs text-slate-500">提示：歸還時間以當下點擊還車的時間自動顯示最準確；驗車與保險剩餘30天內自動提醒；距下次保養剩餘 500 公里內自動跳出保養通知</p>
             </div>
             <div class="flex items-center space-x-2">
               <button onclick="printVehicleReport()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold cursor-pointer shadow">
@@ -2702,151 +2998,6 @@
       `;
     }
 
-    function renderEvaluations() {
-      const uniqueRecords = getUniqueClockRecords();
-      const evList = windowState.employees.map(emp => {
-        const empTasks = windowState.tasks.filter(t => t.assignees.includes(emp.name));
-        const completedTaskCount = empTasks.filter(t => t.status === '已完成').length;
-        const uncompletedTaskCount = empTasks.filter(t => t.status !== '已完成' && t.date <= todayStr).length;
-        const empClocks = uniqueRecords.filter(c => c.name === emp.name);
-        const lateCount = empClocks.filter(c => c.status.includes('遲到')).length;
-
-        const customEval = windowState.evaluations[emp.name] || {
-          efficiencyScore: 3, tripCoopScore: 3, sanitationScore: 3, knowledgeScore: 3,
-          comment: '工作表現正常。'
-        };
-
-        const baseScore = 70;
-        const eff = customEval.efficiencyScore || 3;
-        const trip = customEval.tripCoopScore || 3;
-        const san = customEval.sanitationScore || 3;
-        const knw = customEval.knowledgeScore || 3;
-
-        const calculatedScore = Math.min(100, Math.max(0,
-          baseScore + (eff * 2) + (trip * 2) + (san * 2) + (knw * 2) + (completedTaskCount * 2) - (lateCount * 5) - (uncompletedTaskCount * 3)
-        ));
-
-        return {
-          id: emp.id, name: emp.name, role: emp.role,
-          efficiencyScore: eff, tripCoopScore: trip, sanitationScore: san, knowledgeScore: knw,
-          completedTaskCount, uncompletedTaskCount, lateCount, totalScore: calculatedScore,
-          comment: customEval.comment
-        };
-      });
-
-      return `
-        <div class="space-y-4">
-          <div class="bg-white p-4 rounded-2xl border flex flex-col sm:flex-row justify-between items-center gap-3 shadow-xs">
-            <div>
-              <h2 class="font-extrabold text-slate-900 text-base">🏅 門市員工當月績效考核表 (70分基準起算) (${windowState.scheduleYear}年${windowState.scheduleMonth}月)</h2>
-              <p class="text-xs text-slate-500">提示：點擊右側按鈕可將本月考核成績封存入庫，供「年度考核彙整」查閱</p>
-            </div>
-            <div class="flex items-center space-x-2">
-              <button onclick="archiveCurrentEvaluation()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-black px-4 py-2 rounded-xl text-xs shadow cursor-pointer">
-                💾 封存並儲存本月考核紀錄
-              </button>
-            </div>
-          </div>
-
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            ${evList.map(ev => `
-              <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
-                <div class="flex justify-between items-center border-b pb-2">
-                  <div>
-                    <h3 class="font-extrabold text-slate-900 text-sm">${ev.name} (${ev.role})</h3>
-                    <p class="text-[10px] text-slate-400">工號: ${ev.id}</p>
-                  </div>
-                  <div class="text-right">
-                    <div class="flex space-x-1 justify-end mb-1">
-                      <button onclick="printSingleEmployeeEval('${ev.name}')" class="bg-indigo-600 text-white font-bold px-2 py-0.5 rounded text-[10px] cursor-pointer">🖨️ 單獨列印</button>
-                      ${windowState.isAdmin ? `<button onclick="openEditEvalModal('${ev.name}')" class="bg-amber-400 text-slate-950 font-bold px-2 py-0.5 rounded text-[10px] cursor-pointer">✏️ 編輯評分</button>` : ''}
-                    </div>
-                    <div class="text-2xl font-black text-indigo-600 font-mono">${ev.totalScore} 分</div>
-                  </div>
-                </div>
-
-                <div class="bg-slate-50 p-3 rounded-xl text-xs space-y-2 text-slate-700">
-                  <div class="grid grid-cols-2 gap-2 bg-white p-2.5 rounded-xl border font-bold text-[11px]">
-                    <div>⚡ 做事效率：${'⭐'.repeat(ev.efficiencyScore)}</div>
-                    <div>🚗 出差配合：${'⭐'.repeat(ev.tripCoopScore)}</div>
-                    <div class="text-emerald-800">🧹 衛生環境：${'⭐'.repeat(ev.sanitationScore)}</div>
-                    <div class="text-indigo-800">📚 專業知識：${'⭐'.repeat(ev.knowledgeScore)}</div>
-                  </div>
-
-                  <p class="text-emerald-700 font-bold">✓ 任務完成：已完成 <strong>${ev.completedTaskCount}</strong> 項 (+${ev.completedTaskCount * 2}分)</p>
-                  <p class="text-rose-700 font-bold">⚠️ 當日/逾期未完成任務：<strong>${ev.uncompletedTaskCount}</strong> 項 (-${ev.uncompletedTaskCount * 3}分)</p>
-                  <p class="text-rose-600 font-bold">⚠️ 考勤遲到：遲到 <strong>${ev.lateCount}</strong> 次 (-${ev.lateCount * 5}分)</p>
-                  <p class="italic text-indigo-900 bg-white p-2 rounded-lg border mt-1">📝 主管評語：${ev.comment}</p>
-                </div>
-              </div>
-            `).join('')}
-          </div>
-        </div>
-      `;
-    }
-
-    function renderAnnualEvaluation() {
-      const year = windowState.selectedAnnualYear;
-      const empName = windowState.selectedAnnualEmp;
-      const archives = windowState.evalArchives || {};
-      const months = Array.from({length: 12}, (_, i) => i + 1);
-
-      return `
-        <div class="space-y-4">
-          <div class="bg-white p-5 rounded-2xl border space-y-4 shadow-xs">
-            <div class="flex flex-col sm:flex-row justify-between items-center gap-3 border-b pb-3 no-print">
-              <div>
-                <h2 class="font-extrabold text-slate-900 text-base">📈 年度考核歷史與趨勢彙整報表</h2>
-                <p class="text-xs text-slate-500">可自由切換年份與員工，查閱每個月封存的考核成績與評語紀錄</p>
-              </div>
-              <div class="flex items-center space-x-2">
-                <select onchange="windowState.selectedAnnualYear = Number(this.value); render();" class="p-2 bg-slate-50 border rounded-xl font-bold text-xs">
-                  ${[2026, 2027, 2028, 2029, 2030, 2031, 2032, 2033, 2034, 2035, 2036].map(y => `<option value="${y}" ${year === y ? 'selected' : ''}>${y} 年</option>`).join('')}
-                </select>
-                <select onchange="windowState.selectedAnnualEmp = this.value; render();" class="p-2 bg-slate-50 border rounded-xl font-bold text-xs text-indigo-900">
-                  ${windowState.employees.map(e => `<option value="${e.name}" ${empName === e.name ? 'selected' : ''}>${e.name}</option>`).join('')}
-                </select>
-                <button onclick="printAnnualEvalReport()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-3.5 py-2 rounded-xl text-xs cursor-pointer">🖨️ 列印年度考核表</button>
-              </div>
-            </div>
-
-            <div class="overflow-x-auto border rounded-2xl">
-              <table class="w-full text-xs text-center border-collapse">
-                <thead class="bg-slate-100 border-b text-slate-700">
-                  <tr>
-                    <th class="p-3 border-r w-28">月份</th>
-                    <th class="p-3 border-r">效率</th>
-                    <th class="p-3 border-r">出差</th>
-                    <th class="p-3 border-r">衛生</th>
-                    <th class="p-3 border-r">知識</th>
-                    <th class="p-3 border-r">當月總分</th>
-                    <th class="p-3 text-left">主管評語與表現紀錄</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${months.map(m => {
-                    const key = `${year}-${m}`;
-                    const data = archives[key]?.[empName];
-                    return `
-                      <tr class="border-b hover:bg-slate-50">
-                        <td class="p-3 border-r font-mono font-bold text-slate-900 bg-slate-50/50">${year}年 ${m}月</td>
-                        <td class="p-3 border-r">${data ? `${data.efficiencyScore}⭐` : '-'}</td>
-                        <td class="p-3 border-r">${data ? `${data.tripCoopScore}⭐` : '-'}</td>
-                        <td class="p-3 border-r">${data ? `${data.sanitationScore}⭐` : '-'}</td>
-                        <td class="p-3 border-r">${data ? `${data.knowledgeScore}⭐` : '-'}</td>
-                        <td class="p-3 border-r font-mono font-black text-indigo-600 text-sm">${data ? `${data.totalScore} 分` : '<span class="text-slate-400 font-normal">未封存</span>'}</td>
-                        <td class="p-3 text-left leading-relaxed text-slate-700">${data ? data.comment : '<span class="text-slate-400 italic">當月尚無考核紀錄</span>'}</td>
-                      </tr>
-                    `;
-                  }).join('')}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      `;
-    }
-
     function renderModals() {
       if (!windowState.activeModal) return '';
 
@@ -2986,8 +3137,12 @@
             <form onsubmit="handleSaveVehicleReturn(event)" class="bg-white rounded-3xl max-w-md w-full p-6 space-y-3">
               <h3 class="font-bold text-base text-slate-900">🔑 辦理還車結算：${v?.model} (${v?.plate})</h3>
               <div class="space-y-2 text-xs">
-                <div class="bg-slate-50 p-2.5 rounded-xl border font-mono">
-                  出發時起使里程：<strong>${v?.currentMileage} km</strong>
+                <div class="bg-indigo-50 p-3 rounded-xl border border-indigo-200 font-mono flex justify-between items-center">
+                  <div>
+                    <span class="text-[10px] text-indigo-900 block">系統自動抓取還車當下時間：</span>
+                    <input type="time" id="vr-return-time" required value="${m.returnTime}" class="p-1 border rounded bg-white font-bold text-sm" />
+                  </div>
+                  <span class="text-indigo-700 font-bold text-xs">起使里程：${v?.currentMileage} km</span>
                 </div>
                 <div>
                   <label class="block text-slate-600 mb-1 font-bold">還車時總里程數 (km)</label>
@@ -3018,7 +3173,7 @@
               </div>
               <div class="flex justify-end gap-2 pt-2">
                 <button type="button" onclick="closeModal()" class="px-4 py-2 text-xs text-slate-600 cursor-pointer">取消</button>
-                <button type="submit" class="px-4 py-2 bg-rose-600 text-white font-bold rounded-xl text-xs cursor-pointer shadow">確認還車並更新總里程</button>
+                <button type="submit" class="px-4 py-2 bg-rose-600 text-white font-bold rounded-xl text-xs cursor-pointer shadow">確認還車並記錄當下時間</button>
               </div>
             </form>
           </div>
@@ -3061,7 +3216,7 @@
               </div>
               <div class="flex justify-end gap-2 pt-2">
                 <button type="button" onclick="closeModal()" class="px-4 py-2 text-xs text-slate-600 cursor-pointer">取消</button>
-                <button type="submit" class="px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl text-xs cursor-pointer">確認修改紀錄</button>
+                <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold cursor-pointer">確認修改紀錄</button>
               </div>
             </form>
           </div>
@@ -3090,7 +3245,7 @@
               </div>
               <div class="flex justify-end gap-2 pt-2">
                 <button type="button" onclick="closeModal()" class="px-4 py-2 text-xs text-slate-600 cursor-pointer">取消</button>
-                <button type="submit" class="px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl text-xs font-bold cursor-pointer">儲存修改</button>
+                <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold cursor-pointer">儲存修改</button>
               </div>
             </form>
           </div>
@@ -3425,4 +3580,3 @@
   </script>
 </body>
 </html>
-```eof
