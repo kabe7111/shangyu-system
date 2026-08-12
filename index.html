@@ -675,10 +675,23 @@
       render();
     };
 
-    window.openEditClockModal = (recordId) => {
+    window.openEditClockModal = (recordId, empName, dateStr) => {
       if (!windowState.isAdmin) return showToast('🔒 請先解鎖管理員權限才能修改打卡！', 'warning');
-      const rec = windowState.clockRecords.find(c => c.id === recordId);
-      if (!rec) return;
+      let rec = windowState.clockRecords.find(c => c.id === recordId);
+      if (!rec) {
+        rec = {
+          id: Date.now(),
+          name: empName,
+          date: dateStr,
+          clockIn: '--:--',
+          clockOut: '--:--',
+          location: '管理員補登',
+          hoursWorked: 0,
+          otHours: 0,
+          status: '🟢 正常'
+        };
+        windowState.clockRecords.unshift(rec);
+      }
       windowState.modalData = { ...rec };
       windowState.activeModal = 'clockModal';
       render();
@@ -710,6 +723,7 @@
       saveStateToCloud();
       windowState.activeModal = null;
       showToast('✅ 打卡記錄已成功修改並同步至雲端！');
+      render();
     };
 
     window.handleAdminLoginSubmit = (e) => {
@@ -970,6 +984,7 @@
         totalScore
       };
     }
+    window.calculateEmpPerformanceMetrics = calculateEmpPerformanceMetrics;
 
     window.archiveCurrentEvaluation = () => {
       if (!windowState.isAdmin) return showToast('🔒 請先解鎖管理員權限才能執行存檔！', 'warning');
@@ -2667,7 +2682,7 @@
                   let displayLoc = rec ? rec.location : '-';
                   let rowBadge = '';
 
-                  if (isWorkingShift && m.dateStr <= todayStr && (!rec || rec.clockIn === '--:--')) {
+                  if (isWorkingShift && m.dateStr <= todayStr && (!rec || rec.clockIn === '--:--' || rec.clockIn.includes('未打卡'))) {
                     displayIn = '⚠️ 未打卡';
                     displayLoc = '未打卡上班 (扣分10分)';
                     rowBadge = 'bg-rose-50/60';
@@ -2687,7 +2702,7 @@
                       <td class="p-1 border-r text-left">${displayLoc}</td>
                       ${windowState.isAdmin ? `
                         <td class="p-1 no-print">
-                          ${rec ? `<button onclick="openEditClockModal(${rec.id})" class="bg-amber-400 text-slate-950 font-bold px-2 py-0.5 rounded text-[10px] cursor-pointer">✏️ 修改</button>` : '-'}
+                          <button onclick="openEditClockModal(${rec ? rec.id : 0}, '${targetEmp.name}', '${m.dateStr}')" class="bg-amber-400 text-slate-950 font-bold px-2 py-0.5 rounded text-[10px] cursor-pointer">✏️ ${rec ? '修改' : '補登'}</button>
                         </td>
                       ` : ''}
                     </tr>
@@ -3139,8 +3154,8 @@
               <div class="space-y-2 text-xs">
                 <div class="bg-indigo-50 p-3 rounded-xl border border-indigo-200 font-mono flex justify-between items-center">
                   <div>
-                    <span class="text-[10px] text-indigo-900 block">系統自動抓取還車當下時間：</span>
-                    <input type="time" id="vr-return-time" required value="${m.returnTime}" class="p-1 border rounded bg-white font-bold text-sm" />
+                    <label class="block text-[10px] text-indigo-900 font-bold mb-1">還車時間 (已自動抓取當下即時時間)：</label>
+                    <input type="time" id="vr-return-time" required value="${m.returnTime}" class="p-1.5 border rounded bg-white font-bold text-sm" />
                   </div>
                   <span class="text-indigo-700 font-bold text-xs">起使里程：${v?.currentMileage} km</span>
                 </div>
@@ -3207,11 +3222,11 @@
                 </div>
                 <div>
                   <label class="block text-slate-600 mb-1 font-bold">保養維修紀錄</label>
-                  <input type="text" id="vel-maint" value="${m.maintenanceNote || ''}" class="w-full p-2 border rounded-xl" />
+                  <input type="text" id="vel-maint" value="${m.maintenanceNote || ''}" class="w-full p-2.5 border rounded-xl" />
                 </div>
                 <div>
                   <label class="block text-slate-600 mb-1 font-bold">備註</label>
-                  <input type="text" id="vel-note" value="${m.note || ''}" class="w-full p-2 border rounded-xl" />
+                  <input type="text" id="vel-note" value="${m.note || ''}" class="w-full p-2.5 border rounded-xl" />
                 </div>
               </div>
               <div class="flex justify-end gap-2 pt-2">
@@ -3228,15 +3243,15 @@
         return `
           <div class="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
             <form onsubmit="handleSaveClockSubmit(event)" class="bg-white rounded-3xl max-w-sm w-full p-6 space-y-3">
-              <h3 class="font-bold text-slate-900 text-base">✏️ 修改【${m.name}】打卡紀錄 (${m.date})</h3>
+              <h3 class="font-bold text-slate-900 text-base">✏️ 補登/修改【${m.name}】打卡紀錄 (${m.date})</h3>
               <div class="space-y-2 text-xs">
                 <div>
                   <label class="block text-slate-600 mb-1 font-bold">☀️ 上班時間</label>
-                  <input type="time" id="edit-clock-in" required value="${m.clockIn}" class="w-full p-2.5 border rounded-xl font-mono text-center" />
+                  <input type="time" id="edit-clock-in" required value="${m.clockIn.includes('未打卡') ? '09:00' : m.clockIn}" class="w-full p-2.5 border rounded-xl font-mono text-center" />
                 </div>
                 <div>
                   <label class="block text-slate-600 mb-1 font-bold">🌙 下班時間</label>
-                  <input type="time" id="edit-clock-out" required value="${m.clockOut}" class="w-full p-2.5 border rounded-xl font-mono text-center" />
+                  <input type="time" id="edit-clock-out" required value="${m.clockOut.includes('未打卡') || m.clockOut === '--:--' ? '18:00' : m.clockOut}" class="w-full p-2.5 border rounded-xl font-mono text-center" />
                 </div>
                 <div>
                   <label class="block text-slate-600 mb-1 font-bold">📍 打卡地點/事由</label>
