@@ -1312,6 +1312,11 @@
       const v = windowState.vehicles.find(item => item.id === vehicleId);
       if (!v) return;
       const activeLog = windowState.vehicleLogs.find(l => l.vehicleId === vehicleId && l.status === '使用中');
+      
+      if (!windowState.isAdmin && activeLog && activeLog.staffName !== windowState.currentUser.name) {
+        return showToast(`⚠️ 權限提醒：此車由【${activeLog.staffName}】登記借用，僅限本人或管理員可辦理還車！`, 'error');
+      }
+
       windowState.modalData = {
         vehicleId: v.id,
         logId: activeLog ? activeLog.id : null,
@@ -1329,7 +1334,7 @@
 
     window.openEditVehicleLogModal = (logId) => {
       if (!windowState.isAdmin) return showToast('🔒 請先解鎖管理員權限才能修改公務車明細！', 'warning');
-      const log = windowState.vehicleLogs.find(l => l.id === logId);
+      const log = windowState.vehicleLogs.find(l => Number(l.id) === Number(logId));
       if (!log) return;
       windowState.modalData = { ...log };
       windowState.activeModal = 'vehicleLogEditModal';
@@ -2814,8 +2819,8 @@
 
           <div class="bg-white p-5 rounded-2xl border flex flex-col sm:flex-row justify-between items-center gap-3 shadow-xs">
             <div>
-              <h2 class="font-extrabold text-slate-900 text-base">🚗 公務車使用登記與控管系統 (強制自動抓取當下還車時間)</h2>
-              <p class="text-xs text-slate-500">提示：點擊「辦理還車登記」時，系統將強制鎖定並記錄當下實際還車的日期與時間；驗車與保險剩餘30天內自動提醒；距下次保養剩餘 500 公里內自動跳出保養通知</p>
+              <h2 class="font-extrabold text-slate-900 text-base">🚗 公務車使用登記與控管系統 (僅限借用人或管理員還車)</h2>
+              <p class="text-xs text-slate-500">提示：點擊「辦理還車登記」時，系統將強制自動記錄當下真實日期與時間；基於權責歸屬，僅限本人或管理員可辦理還車</p>
             </div>
             <div class="flex items-center space-x-2">
               <button onclick="printVehicleReport()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold cursor-pointer shadow">
