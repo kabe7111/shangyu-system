@@ -416,6 +416,17 @@
       }
     });
 
+    // Automated 3:00 PM (15:00) Daily Backup Trigger
+    function initDailyAutoBackup() {
+      setInterval(() => {
+        const now = new Date();
+        if (now.getHours() === 15 && now.getMinutes() === 0 && now.getSeconds() < 10) {
+          window.exportSystemBackup();
+          showToast('🕒 系統已自動執行每日下午三點 (15:00) 資料備份！');
+        }
+      }, 5000);
+    }
+
     function getUniqueClockRecords() {
       const map = new Map();
       const sorted = [...windowState.clockRecords].sort((a, b) => a.id - b.id);
@@ -2207,7 +2218,7 @@
               </div>
             </div>
 
-            <!-- NEW: Daily Staff Attendance Overview (Working vs Off) -->
+            <!-- Daily Staff Attendance Overview (Working vs Off) -->
             <div class="border-t border-amber-400/30 pt-1.5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
               <div class="flex items-center space-x-2 flex-wrap">
                 <span class="font-black text-emerald-300">☀️ 今日上班人員 (${workingStaffList.length}人)：</span>
@@ -2959,7 +2970,7 @@
                     <th class="p-2 border-r">行駛距離</th>
                     <th class="p-2 border-r">加油 / 保養記錄</th>
                     <th class="p-2 border-r">狀態</th>
-                    ${windowState.isAdmin ? '<th class="p-2 no-print">管理操作</th>' : ''}
+                    <th class="p-2 no-print">管理操作</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2976,12 +2987,10 @@
                         ${log.maintenanceNote ? `🔧 保養: ${log.maintenanceNote}` : (!log.fuelLiters ? '無' : '')}
                       </td>
                       <td class="p-2 border-r font-bold ${log.status === '使用中' ? 'text-rose-600' : 'text-emerald-700'}">${log.status}</td>
-                      ${windowState.isAdmin ? `
-                        <td class="p-2 no-print space-x-1 whitespace-nowrap z-30 relative">
-                          <button type="button" onclick="openEditVehicleLogModal(${log.id})" class="bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold px-2 py-1 rounded text-[10px] cursor-pointer">✏️ 修改</button>
-                          <button type="button" onclick="deleteVehicleLog(${log.id})" class="bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold px-2 py-1 rounded text-[10px] cursor-pointer">🗑️ 刪除</button>
-                        </td>
-                      ` : ''}
+                      <td class="p-2 no-print space-x-1 whitespace-nowrap z-30 relative">
+                        <button type="button" onclick="openEditVehicleLogModal(${log.id})" class="bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold px-2 py-1 rounded text-[10px] cursor-pointer">✏️ 修改</button>
+                        <button type="button" onclick="deleteVehicleLog(${log.id})" class="bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold px-2 py-1 rounded text-[10px] cursor-pointer">🗑️ 刪除</button>
+                      </td>
                     </tr>
                   `).join('')}
                   ${logs.length === 0 ? `<tr><td colspan="9" class="p-4 text-slate-400 text-center">目前尚無公務車紀錄</td></tr>` : ''}
@@ -3624,6 +3633,7 @@
     try {
       render();
       initFirebaseSync();
+      initDailyAutoBackup();
     } catch (e) {
       console.error("Boot Error:", e);
     }
