@@ -303,13 +303,17 @@
       }
       try {
         const docRef = doc(db, 'system', 'mainData');
+        // Immediately fetch and render without delay
         getDoc(docRef).then((docSnap) => {
           if (docSnap.exists()) {
             applyCloudData(docSnap.data());
           } else {
             saveStateToCloud();
+            render();
           }
-        }).catch(() => {});
+        }).catch(() => {
+          render();
+        });
 
         onSnapshot(docRef, (docSnap) => {
           if (docSnap.exists()) {
@@ -380,9 +384,7 @@
         }
       }
 
-      if (hasChanges) {
-        render();
-      }
+      render();
     }
 
     async function saveStateToCloud() {
@@ -1027,6 +1029,7 @@
       saveStateToCloud();
       windowState.activeModal = null;
       showToast('✅ 成功發布新公告！');
+      render();
     };
 
     window.handleShiftSelectChange = (empName, dayIdx, selectElement) => {
@@ -3631,7 +3634,6 @@
     }, 1000);
 
     try {
-      render();
       initFirebaseSync();
       initDailyAutoBackup();
     } catch (e) {
