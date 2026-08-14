@@ -2117,6 +2117,20 @@
       });
       const customReminders = windowState.customReminders || [];
 
+      // Calculate today's working and on-leave staff
+      const activeEmps = windowState.employees.filter(e => e.status !== '離職');
+      const workingStaffList = [];
+      const offStaffList = [];
+
+      activeEmps.forEach(emp => {
+        const shiftToday = getStaffShiftOnDate(emp.name, todayStr);
+        if (['休假', '事假', '病假', '工傷', '陪產', '婚假', '喪假', '特一'].includes(shiftToday)) {
+          offStaffList.push(`${emp.name}(${shiftToday})`);
+        } else {
+          workingStaffList.push(emp.name);
+        }
+      });
+
       return `
         <header class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-4 sm:p-5 shadow-lg relative no-print">
           <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-3">
@@ -2190,6 +2204,18 @@
                     📋 複製 LINE 提醒
                   </button>
                 ` : ''}
+              </div>
+            </div>
+
+            <!-- NEW: Daily Staff Attendance Overview (Working vs Off) -->
+            <div class="border-t border-amber-400/30 pt-1.5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+              <div class="flex items-center space-x-2 flex-wrap">
+                <span class="font-black text-emerald-300">☀️ 今日上班人員 (${workingStaffList.length}人)：</span>
+                <span class="text-white font-medium">${workingStaffList.length > 0 ? workingStaffList.join('、') : '無'}</span>
+              </div>
+              <div class="flex items-center space-x-2 flex-wrap">
+                <span class="font-black text-rose-300">🌙 今日休假人員 (${offStaffList.length}人)：</span>
+                <span class="text-amber-100 font-medium">${offStaffList.length > 0 ? offStaffList.join('、') : '無'}</span>
               </div>
             </div>
 
