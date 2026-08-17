@@ -303,7 +303,6 @@
       }
       try {
         const docRef = doc(db, 'system', 'mainData');
-        // Immediately fetch and render without delay
         getDoc(docRef).then((docSnap) => {
           if (docSnap.exists()) {
             applyCloudData(docSnap.data());
@@ -2131,7 +2130,6 @@
       });
       const customReminders = windowState.customReminders || [];
 
-      // Calculate today's working and on-leave staff
       const activeEmps = windowState.employees.filter(e => e.status !== '離職');
       const workingStaffList = [];
       const offStaffList = [];
@@ -2221,7 +2219,6 @@
               </div>
             </div>
 
-            <!-- Daily Staff Attendance Overview (Working vs Off) -->
             <div class="border-t border-amber-400/30 pt-1.5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
               <div class="flex items-center space-x-2 flex-wrap">
                 <span class="font-black text-emerald-300">☀️ 今日上班人員 (${workingStaffList.length}人)：</span>
@@ -2724,13 +2721,19 @@
                 ${days.map(m => {
                   const rec = windowState.clockRecords.filter(c => c.name === targetEmp.name && c.date === m.dateStr)[0];
                   const shift = getStaffShiftOnDate(targetEmp.name, m.dateStr);
-                  const isWorkingShift = ['上班', '加班', '特半', '特一'].includes(shift);
+                  const isLeaveShift = ['休假', '事假', '病假', '工傷', '陪產', '婚假', '喪假', '特一', '特半'].includes(shift);
+                  const isWorkingShift = ['上班', '加班'].includes(shift);
+                  
                   let displayIn = rec ? rec.clockIn : '--:--';
                   let displayOut = rec ? rec.clockOut : '--:--';
                   let displayLoc = rec ? rec.location : '-';
                   let rowBadge = '';
 
-                  if (isWorkingShift && m.dateStr <= todayStr && (!rec || rec.clockIn === '--:--' || rec.clockIn.includes('未打卡') || rec.clockIn.includes('未到'))) {
+                  if (isLeaveShift) {
+                    displayIn = '--:--';
+                    displayOut = '--:--';
+                    displayLoc = `-`;
+                  } else if (isWorkingShift && m.dateStr <= todayStr && (!rec || rec.clockIn === '--:--' || rec.clockIn.includes('未打卡') || rec.clockIn.includes('未到'))) {
                     displayIn = '⚠️ 未打卡';
                     displayLoc = '未打卡上班 (扣分10分)';
                     rowBadge = 'bg-rose-50/60';
@@ -2789,7 +2792,7 @@
                     days.forEach(m => {
                       if (m.dateStr <= todayStr) {
                         const shift = getStaffShiftOnDate(e.name, m.dateStr);
-                        const isWorking = ['上班', '加班', '特半', '特一'].includes(shift);
+                        const isWorking = ['上班', '加班'].includes(shift);
                         if (isWorking) {
                           const rec = empClocks.filter(c => c.date === m.dateStr)[0];
                           if (!rec || rec.clockIn === '--:--' || rec.clockIn.includes('未打卡') || rec.clockIn.includes('未到')) {
@@ -3380,7 +3383,7 @@
                   ${windowState.employees.map(emp => {
                     const isSel = (m.assignees || []).includes(emp.name);
                     const shiftToday = getStaffShiftOnDate(emp.name, m.date);
-                    const isOff = ['休假', '事假', '病假', '工傷', '陪產', '婚假', '喪假', '特一'].includes(shiftToday);
+                    const isOff = ['休假', '事假', '病假', '工傷', '陪產', '婚假', '喪假', '特一', '特半'].includes(shiftToday);
                     return `
                       <button
                         type="button"
