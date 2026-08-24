@@ -145,6 +145,7 @@
       announcements: initialAnnouncements,
       tasks: initialTasks,
       schedules: {},
+      overtimeSchedules: {}, 
       clockRecords: initialClockRecords,
       evaluations: {},
       evalArchives: {},
@@ -337,6 +338,9 @@
       if (data.schedules && JSON.stringify(data.schedules) !== JSON.stringify(windowState.schedules)) {
         windowState.schedules = data.schedules;
       }
+      if (data.overtimeSchedules && JSON.stringify(data.overtimeSchedules) !== JSON.stringify(windowState.overtimeSchedules)) {
+        windowState.overtimeSchedules = data.overtimeSchedules;
+      }
       if (data.clockRecords && JSON.stringify(data.clockRecords) !== JSON.stringify(windowState.clockRecords)) {
         windowState.clockRecords = data.clockRecords;
       }
@@ -382,6 +386,7 @@
           announcements: windowState.announcements,
           tasks: windowState.tasks,
           schedules: windowState.schedules,
+          overtimeSchedules: windowState.overtimeSchedules,
           clockRecords: windowState.clockRecords,
           evaluations: windowState.evaluations,
           evalArchives: windowState.evalArchives,
@@ -442,6 +447,7 @@
         announcements: windowState.announcements,
         tasks: windowState.tasks,
         schedules: windowState.schedules,
+        overtimeSchedules: windowState.overtimeSchedules,
         clockRecords: windowState.clockRecords,
         evaluations: windowState.evaluations,
         evalArchives: windowState.evalArchives,
@@ -471,6 +477,7 @@
           if (parsed.announcements) windowState.announcements = parsed.announcements;
           if (parsed.tasks) windowState.tasks = parsed.tasks;
           if (parsed.schedules) windowState.schedules = parsed.schedules;
+          if (parsed.overtimeSchedules) windowState.overtimeSchedules = parsed.overtimeSchedules;
           if (parsed.clockRecords) windowState.clockRecords = parsed.clockRecords;
           if (parsed.evaluations) windowState.evaluations = parsed.evaluations;
           if (parsed.evalArchives) windowState.evalArchives = parsed.evalArchives;
@@ -645,13 +652,11 @@
       }
 
       const timeStr = new Date().toLocaleTimeString('zh-TW', { hour12: false }).slice(0, 5);
-      
       const todayShift = getStaffShiftOnDate(windowState.currentUser.name, todayStr);
       let expectedTime = '09:00';
       if (todayShift === '早班') expectedTime = '07:00';
       else if (todayShift === '中班') expectedTime = '09:00';
       else if (todayShift === '晚班') expectedTime = '14:00';
-      else if (todayShift === '加班') expectedTime = '09:00';
 
       const isLate = type === 'in' && timeStr > expectedTime;
 
@@ -674,7 +679,7 @@
         clockOut: type === 'out' ? timeStr : '--:--',
         hoursWorked, otHours,
         status: isLate ? '⚠️ 遲到' : '🟢 正常',
-        location: windowState.clockMode === 'store' ? (todayShift === '加班' ? '公司加班打卡' : '公司打卡') : `🚗 外勤: ${windowState.tripReason}`
+        location: windowState.clockMode === 'store' ? '公司打卡' : `🚗 外勤: ${windowState.tripReason}`
       });
       saveStateToCloud();
       showToast(`🎉 【${windowState.currentUser.name}】打卡成功！(工時：${hoursWorked}h)`);
@@ -1062,6 +1067,24 @@
       showToast(`⚡ 已更新【${empName}】${windowState.scheduleMonth}/${days[dayIdx].day} 班別為：${nextShift}`);
     };
 
+    window.handleOvertimeCheckboxChange = (empName, dayIdx, checkboxElement) => {
+      if (!windowState.isAdmin) {
+        alert('🔒 請先解鎖管理員權限才能勾選獨立加班！');
+        checkboxElement.checked = !checkboxElement.checked;
+        return;
+      }
+
+      const isChecked = checkboxElement.checked;
+      const key = `${windowState.scheduleYear}-${windowState.scheduleMonth}-${empName}`;
+      if (!windowState.overtimeSchedules) windowState.overtimeSchedules = {};
+      if (!windowState.overtimeSchedules[key]) windowState.overtimeSchedules[key] = {};
+
+      windowState.overtimeSchedules[key][dayIdx] = isChecked;
+      saveStateToCloud();
+      const { days } = getMonthDaysData(windowState.scheduleYear, windowState.scheduleMonth);
+      showToast(`⚡ 已更新【${empName}】${windowState.scheduleMonth}/${days[dayIdx].day} 獨立加班狀態：${isChecked ? '已勾選加班' : '取消加班'}`);
+    };
+
     window.moveEmployeeOrder = (index, direction) => {
       if (!windowState.isAdmin) return showToast('🔒 請先解鎖管理員權限才能調整員工順序！', 'warning');
       const activeEmps = windowState.employees.filter(e => e.status !== '離職');
@@ -1095,78 +1118,60 @@
         if (task.status === '已完成') {
           task.status = '待處理';
           task.completedBy = '';
-          task.completionNote = '';
           saveStateToCloud();
           showToast('已切換為待處理');
-          render();
         } else {
-          windowState.modalData = { taskId: id, title: task.title, completionNote: task.completionNote || '' };
-          windowState.activeModal = 'taskCompleteModal';
-          render();
-        }
-      }
-    };
+          task.status = '已完成';
+          task.completedBy = windowState.currentUser.name;
 
-    window.handleTaskCompleteSubmit = (e) => {
-      e.preventDefault();
-      const taskId = windowState.modalData.taskId;
-      const noteVal = document.getElementById('task-complete-note-input').value.trim();
-      const task = windowState.tasks.find(t => t.id === taskId);
+          if (task.repeat && task.repeat !== '單次') {
+            const currDate = new Date(task.date);
+            if (task.repeat === '每日') {
+              currDate.setDate(currDate.getDate() + 1);
+            } else if (task.repeat === '每週') {
+              currDate.setDate(currDate.getDate() + 7);
+            } else if (task.repeat === '每月') {
+              currDate.setMonth(currDate.getMonth() + 1);
+            } else if (task.repeat === '每兩個月') {
+              currDate.setMonth(currDate.getMonth() + 2);
+            } else if (task.repeat === '每三個') {
+              currDate.setMonth(currDate.getMonth() + 3);
+            } else if (task.repeat === '每半年') {
+              currDate.setMonth(currDate.getMonth() + 6);
+            } else if (task.repeat === '每年') {
+              currDate.setFullYear(currDate.getFullYear() + 1);
+            }
 
-      if (task) {
-        task.status = '已完成';
-        task.completedBy = windowState.currentUser.name;
-        task.completionNote = noteVal || '已依規完成';
+            const nextDateStr = currDate.toISOString().slice(0, 10);
+            const duplicatedChecklist = (task.checklist || []).map(c => ({ ...c, checked: false }));
 
-        if (task.repeat && task.repeat !== '單次') {
-          const currDate = new Date(task.date);
-          if (task.repeat === '每日') {
-            currDate.setDate(currDate.getDate() + 1);
-          } else if (task.repeat === '每週') {
-            currDate.setDate(currDate.getDate() + 7);
-          } else if (task.repeat === '每月') {
-            currDate.setMonth(currDate.getMonth() + 1);
-          } else if (task.repeat === '每兩個月') {
-            currDate.setMonth(currDate.getMonth() + 2);
-          } else if (task.repeat === '每三個') {
-            currDate.setMonth(currDate.getMonth() + 3);
-          } else if (task.repeat === '每半年') {
-            currDate.setMonth(currDate.getMonth() + 6);
-          } else if (task.repeat === '每年') {
-            currDate.setFullYear(currDate.getFullYear() + 1);
+            const exists = windowState.tasks.some(t => t.title === task.title && t.date === nextDateStr);
+            if (!exists) {
+              windowState.tasks.unshift({
+                id: Date.now(),
+                title: task.title,
+                category: task.category,
+                repeat: task.repeat,
+                content: task.content,
+                date: nextDateStr,
+                startTime: task.startTime,
+                endTime: task.endTime,
+                location: task.location,
+                assignees: [...task.assignees],
+                checklist: duplicatedChecklist,
+                status: '待處理',
+                completedBy: '',
+                fileUrl: task.fileUrl || '',
+                fileName: task.fileName || ''
+              });
+              showToast(`🔁 任務已完成，並自動幫您生成下一週期 (${nextDateStr}) 的新任務！`);
+            }
+          } else {
+            showToast(`✅ 【${windowState.currentUser.name}】已完成任務！考核自動加分！`);
           }
 
-          const nextDateStr = currDate.toISOString().slice(0, 10);
-          const duplicatedChecklist = (task.checklist || []).map(c => ({ ...c, checked: false }));
-
-          const exists = windowState.tasks.some(t => t.title === task.title && t.date === nextDateStr);
-          if (!exists) {
-            windowState.tasks.unshift({
-              id: Date.now(),
-              title: task.title,
-              category: task.category,
-              repeat: task.repeat,
-              content: task.content,
-              date: nextDateStr,
-              startTime: task.startTime,
-              endTime: task.endTime,
-              location: task.location,
-              assignees: [...task.assignees],
-              checklist: duplicatedChecklist,
-              status: '待處理',
-              completedBy: '',
-              completionNote: '',
-              fileUrl: task.fileUrl || '',
-              fileName: task.fileName || ''
-            });
-            showToast(`🔁 任務已完成，並自動幫您生成下一週期 (${nextDateStr}) 的新任務！`);
-          }
-        } else {
-          showToast(`✅ 【${windowState.currentUser.name}】已完成任務！考核自動加分！`);
+          saveStateToCloud();
         }
-
-        saveStateToCloud();
-        windowState.activeModal = null;
         render();
       }
     };
@@ -1894,7 +1899,10 @@
         let count = 0;
         fullSchedules.forEach(empSched => {
           const s = empSched.shifts[dIdx] || '中班';
-          if (['早班', '中班', '晚班', '加班', '特半'].includes(s)) count += 1;
+          const otKey = `${windowState.scheduleYear}-${windowState.scheduleMonth}-${empSched.empName}`;
+          const isOtChecked = !!windowState.overtimeSchedules?.[otKey]?.[dIdx];
+
+          if (['早班', '中班', '晚班', '加班', '特半'].includes(s) || isOtChecked) count += 1;
         });
         dailyWorkingCounts[m.day] = count;
       });
@@ -2157,9 +2165,19 @@
       const activeEmps = windowState.employees.filter(e => e.status !== '離職');
       const workingStaffList = [];
       const offStaffList = [];
+      const overtimeStaffList = [];
 
       activeEmps.forEach(emp => {
         const shiftToday = getStaffShiftOnDate(emp.name, todayStr);
+        const otKey = `${curYear}-${curMonth}-${emp.name}`;
+        const { days } = getMonthDaysData(curYear, curMonth);
+        const todayDayIdx = new Date().getDate() - 1;
+        const isOtChecked = !!windowState.overtimeSchedules?.[otKey]?.[todayDayIdx];
+
+        if (isOtChecked) {
+          overtimeStaffList.push(`${emp.name}`);
+        }
+
         if (['休假', '事假', '病假', '工傷', '陪產', '婚假', '喪假', '特一'].includes(shiftToday)) {
           offStaffList.push(`${emp.name}(${shiftToday})`);
         } else {
@@ -2245,12 +2263,16 @@
 
             <div class="border-t border-amber-400/30 pt-1.5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
               <div class="flex items-center space-x-2 flex-wrap">
-                <span class="font-black text-emerald-300">☀️ 今日上班人員 (${workingStaffList.length}人)：</span>
+                <span class="font-black text-emerald-300">☀️ 上班人員 (${workingStaffList.length}人)：</span>
                 <span class="text-white font-medium">${workingStaffList.length > 0 ? workingStaffList.join('、') : '無'}</span>
               </div>
               <div class="flex items-center space-x-2 flex-wrap">
-                <span class="font-black text-rose-300">🌙 今日休假人員 (${offStaffList.length}人)：</span>
+                <span class="font-black text-rose-300">🌙 休假人員 (${offStaffList.length}人)：</span>
                 <span class="text-amber-100 font-medium">${offStaffList.length > 0 ? offStaffList.join('、') : '無'}</span>
+              </div>
+              <div class="flex items-center space-x-2 flex-wrap">
+                <span class="font-black text-amber-300">⭐ 加班人員 (${overtimeStaffList.length}人)：</span>
+                <span class="text-amber-200 font-bold">${overtimeStaffList.length > 0 ? overtimeStaffList.join('、') : '無'}</span>
               </div>
             </div>
 
@@ -2396,18 +2418,12 @@
                       <div class="flex items-center space-x-1 no-print">
                         <button onclick="copyTaskLineText(${t.id})" class="px-2 py-1 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black rounded text-[10px] shadow cursor-pointer">💬 複製 LINE 通知</button>
                         <button onclick="initiateCompleteTask(${t.id})" class="px-2.5 py-1 rounded font-bold cursor-pointer ${t.status === '已完成' ? 'bg-emerald-500 text-slate-950' : 'bg-amber-400 text-slate-950'}">
-                          ${t.status === '已完成' ? `✅ 已完成 (${t.completedBy})` : '⏳ 填寫回覆並完成'}
+                          ${t.status === '已完成' ? `✅ 已完成 (${t.completedBy})` : '⏳ 點擊完成'}
                         </button>
                       </div>
                     </div>
                     <h4 class="font-black text-amber-300 text-sm cursor-pointer hover:underline" ondblclick="openEditTaskModal(${t.id})" title="雙擊編輯此活動">${t.title} ✏️</h4>
                     <p class="text-slate-200 bg-black/30 p-2 rounded-lg border border-white/10">${t.content}</p>
-
-                    ${t.status === '已完成' && t.completionNote ? `
-                      <div class="bg-emerald-950/60 p-2.5 rounded-lg border border-emerald-400/40 text-emerald-200 font-bold">
-                        📋 <strong>完成回覆 (${t.completedBy})</strong>：${t.completionNote}
-                      </div>
-                    ` : ''}
 
                     ${t.fileUrl ? `
                       <div class="bg-black/20 p-2.5 rounded-lg border border-indigo-300/30 flex items-center justify-between">
@@ -2514,18 +2530,12 @@
                         <button onclick="openEditTaskModal(${t.id})" class="px-2 py-1 bg-slate-200 hover:bg-slate-300 rounded text-[11px] font-bold cursor-pointer">✏️ 編輯</button>
                         <button onclick="deleteTask(${t.id})" class="px-2 py-1 bg-rose-100 text-rose-700 rounded text-[11px] font-bold cursor-pointer">🗑️ 刪除</button>
                         <button onclick="initiateCompleteTask(${t.id})" class="px-2.5 py-1 rounded font-bold cursor-pointer ${t.status === '已完成' ? 'bg-emerald-600 text-white' : 'bg-amber-400 text-slate-950'}">
-                          ${t.status === '已完成' ? `✅ 已完成 (${t.completedBy})` : '⏳ 填寫回覆並完成'}
+                          ${t.status === '已完成' ? `✅ 已完成 (${t.completedBy})` : '⏳ 點擊完成'}
                         </button>
                       </div>
                     </div>
                     <h4 class="font-extrabold text-slate-900 text-base">${t.title} ✏️ <span class="text-[10px] text-indigo-600 font-normal">(雙擊可修改)</span></h4>
                     <p class="text-slate-600 bg-white p-2.5 rounded-xl border">${t.content}</p>
-
-                    ${t.status === '已完成' && t.completionNote ? `
-                      <div class="bg-emerald-50 p-2.5 rounded-xl border border-emerald-300 text-emerald-950 font-bold">
-                        📋 <strong>完成回覆 (${t.completedBy})</strong>：${t.completionNote}
-                      </div>
-                    ` : ''}
 
                     ${t.fileUrl ? `
                       <div class="bg-slate-100 p-2.5 rounded-xl border border-slate-200 flex items-center justify-between">
@@ -2569,7 +2579,7 @@
         <div class="bg-white p-4 rounded-2xl border space-y-4 shadow-xs">
           <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-2 border-b pb-3">
             <div class="flex items-center space-x-2">
-              <h2 class="font-extrabold text-slate-900 text-base">📅 全月排班表 (點擊儲存格即可直接點選更換班別，管理員可上下調整員工順序)</h2>
+              <h2 class="font-extrabold text-slate-900 text-base">📅 全月排班表 (點擊儲存格可切換早/中/晚班，下方獨立加班列可同時排班與獨立勾選加班)</h2>
               <div class="flex items-center space-x-1 bg-slate-100 p-1 rounded-xl">
                 <button onclick="jumpToCurrentMonth()" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-xs cursor-pointer">📍 今天</button>
                 <button onclick="shiftMonth(-1)" class="px-2.5 py-1 bg-white rounded-lg text-xs font-bold shadow-xs cursor-pointer">‹ 上個月</button>
@@ -2609,6 +2619,8 @@
                   const isExpired = empSched.isHealthExpired;
                   const empObj = windowState.employees.find(e => e.name === empSched.empName);
                   const isPT = empObj?.type?.includes('兼職') || empObj?.type?.includes('PT');
+                  const otKey = `${windowState.scheduleYear}-${windowState.scheduleMonth}-${empSched.empName}`;
+                  const empOvertimeMap = windowState.overtimeSchedules?.[otKey] || {};
 
                   return `
                     <tr class="border-b hover:bg-slate-50/80 ${isExpired ? 'bg-rose-50/40' : ''}">
@@ -2648,10 +2660,33 @@
                         `;
                       }).join('')}
                     </tr>
+
+                    <tr class="border-b bg-amber-50/40 text-[11px]">
+                      <td class="p-1.5 font-bold sticky left-0 bg-amber-50 border-r z-10 text-amber-900 pl-4 whitespace-nowrap flex items-center gap-1">
+                        <span>⚡ 獨立加班勾選</span>
+                      </td>
+                      <td colspan="3" class="p-1.5 border-r text-center text-amber-800 font-bold text-[10px]">休假可同時勾選加班</td>
+                      ${days.map((m, dIdx) => {
+                        const isOtChecked = !!empOvertimeMap[dIdx];
+                        return `
+                          <td class="p-1 text-center border-r ${m.isWeekend || m.isHoliday ? 'bg-rose-50/10' : ''}">
+                            <div class="flex items-center justify-center">
+                              <input 
+                                type="checkbox" 
+                                ${isOtChecked ? 'checked' : ''} 
+                                onchange="handleOvertimeCheckboxChange('${empSched.empName}', ${dIdx}, this)"
+                                class="w-4 h-4 text-amber-600 rounded cursor-pointer accent-amber-500" 
+                                title="點擊勾選/取消當日獨立加班"
+                              />
+                            </div>
+                          </td>
+                        `;
+                      }).join('')}
+                    </tr>
                   `;
                 }).join('')}
-                <tr class="bg-amber-50/80 font-black border-t-2 border-amber-300">
-                  <td class="p-2.5 sticky left-0 bg-amber-100 border-r z-10">📊 當日上班人數</td>
+                <tr class="bg-amber-100/90 font-black border-t-2 border-amber-400">
+                  <td class="p-2.5 sticky left-0 bg-amber-200 border-r z-10">📊 當日上班人數 (含獨立加班)</td>
                   <td colSpan="3" class="border-r"></td>
                   ${days.map(m => `<td class="p-1 text-center border-r font-mono font-bold ${m.isWeekend || m.isHoliday ? 'text-rose-700' : ''}">${dailyWorkingCounts[m.day]}人</td>`).join('')}
                 </tr>
@@ -2665,16 +2700,12 @@
     function renderAttendance() {
       const { days } = getMonthDaysData(windowState.scheduleYear, windowState.scheduleMonth);
       const targetEmp = windowState.employees.find(e => e.name === windowState.selectedCardStaff) || windowState.employees[0];
-      const todayShiftForUser = getStaffShiftOnDate(windowState.currentUser.name, todayStr);
 
       return `
         <div class="space-y-4">
           <div class="bg-gradient-to-r from-slate-900 to-indigo-950 text-white p-5 rounded-2xl space-y-3 shadow-lg no-print">
             <div class="flex justify-between items-center">
-              <div>
-                <h3 class="text-xl font-bold">🏢 公司考勤與外勤打卡</h3>
-                <p class="text-xs text-amber-300 mt-0.5">今日排班：<strong>${todayShiftForUser}</strong></p>
-              </div>
+              <h3 class="text-xl font-bold">🏢 公司考勤與外勤打卡</h3>
               <div class="flex bg-slate-800 p-1 rounded-xl text-xs font-bold">
                 <button onclick="toggleClockMode('store')" class="px-3 py-1 rounded-lg ${windowState.clockMode === 'store' ? 'bg-indigo-600 text-white' : 'text-slate-400'}">公司打卡</button>
                 <button onclick="toggleClockMode('businessTrip')" class="px-3 py-1 rounded-lg ${windowState.clockMode === 'businessTrip' ? 'bg-amber-500 text-slate-950' : 'text-slate-400'}">外勤打卡</button>
@@ -2719,11 +2750,10 @@
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
               ${windowState.employees.filter(e => e.status !== '離職').map(emp => {
                 const rec = windowState.clockRecords.filter(c => c.name === emp.name && c.date === todayStr)[0];
-                const shiftToday = getStaffShiftOnDate(emp.name, todayStr);
                 return `
                   <div class="p-2.5 rounded-xl border flex justify-between items-center ${rec ? 'bg-emerald-50/60 border-emerald-200' : 'bg-slate-50 border-slate-200'}">
                     <div>
-                      <span class="font-bold text-slate-900">${emp.name} <span class="text-[10px] text-indigo-600 font-normal">(${shiftToday})</span></span>
+                      <span class="font-bold text-slate-900">${emp.name}</span>
                       <span class="text-[10px] text-slate-400 block">${emp.role}</span>
                     </div>
                     <div class="text-right font-mono">
@@ -2762,19 +2792,13 @@
                 ${days.map(m => {
                   const rec = windowState.clockRecords.filter(c => c.name === targetEmp.name && c.date === m.dateStr)[0];
                   const shift = getStaffShiftOnDate(targetEmp.name, m.dateStr);
-                  const isLeaveShift = ['休假', '事假', '病假', '工傷', '陪產', '婚假', '喪假', '特一', '特半'].includes(shift);
-                  const isWorkingShift = ['早班', '中班', '晚班', '加班'].includes(shift);
-                  
+                  const isWorkingShift = ['早班', '中班', '晚班', '加班', '特半', '特一'].includes(shift);
                   let displayIn = rec ? rec.clockIn : '--:--';
                   let displayOut = rec ? rec.clockOut : '--:--';
                   let displayLoc = rec ? rec.location : '-';
                   let rowBadge = '';
 
-                  if (isLeaveShift) {
-                    displayIn = '--:--';
-                    displayOut = '--:--';
-                    displayLoc = `-`;
-                  } else if (isWorkingShift && m.dateStr <= todayStr && (!rec || rec.clockIn === '--:--' || rec.clockIn.includes('未打卡') || rec.clockIn.includes('未到'))) {
+                  if (isWorkingShift && m.dateStr <= todayStr && (!rec || rec.clockIn === '--:--' || rec.clockIn.includes('未打卡') || rec.clockIn.includes('未到'))) {
                     displayIn = '⚠️ 未打卡';
                     displayLoc = '未打卡上班 (扣分10分)';
                     rowBadge = 'bg-rose-50/60';
@@ -2787,7 +2811,7 @@
                   return `
                     <tr class="border-b ${rowBadge || (m.isWeekend || m.isHoliday ? 'bg-rose-50/20' : '')}">
                       <td class="p-1 border-r font-mono">${windowState.scheduleMonth}/${m.day} ${m.holidayName ? `(${m.holidayName})` : ''}</td>
-                      <td class="p-1 border-r font-bold">${shift}</td>
+                      <td class="p-1 border-r">${shift}</td>
                       <td class="p-1 border-r font-mono font-bold ${displayIn.includes('未打卡') ? 'text-rose-600' : ''}">${displayIn}</td>
                       <td class="p-1 border-r font-mono font-bold ${displayOut.includes('未打卡') ? 'text-amber-600' : ''}">${displayOut}</td>
                       <td class="p-1 border-r font-mono">${rec ? `${rec.hoursWorked || 0}h (${rec.otHours || 0}h加班)` : '-'}</td>
@@ -2815,7 +2839,7 @@
         <div class="space-y-4">
           <div class="bg-white p-5 rounded-2xl border space-y-4 shadow-xs">
             <div class="flex justify-between items-center border-b pb-3">
-              <h2 class="font-extrabold text-slate-900 text-base">📊 每月未打卡與遲到扣分統計報表 (依各班別正常到班時間判定)</h2>
+              <h2 class="font-extrabold text-slate-900 text-base">📊 每月未打卡與遲到扣分統計報表 (未打卡扣10分)</h2>
               <button onclick="printLateReport()" class="bg-indigo-600 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold cursor-pointer no-print">🖨️ 列印報表</button>
             </div>
             <div id="late-report-table-container">
@@ -2833,17 +2857,13 @@
                     days.forEach(m => {
                       if (m.dateStr <= todayStr) {
                         const shift = getStaffShiftOnDate(e.name, m.dateStr);
-                        const isWorking = ['早班', '中班', '晚班', '加班'].includes(shift);
+                        const isWorking = ['早班', '中班', '晚班', '加班', '特半', '特一'].includes(shift);
                         if (isWorking) {
-                          let expTime = '09:00';
-                          if (shift === '早班') expTime = '07:00';
-                          else if (shift === '晚班') expTime = '14:00';
-
                           const rec = empClocks.filter(c => c.date === m.dateStr)[0];
                           if (!rec || rec.clockIn === '--:--' || rec.clockIn.includes('未打卡') || rec.clockIn.includes('未到')) {
                             missingPunchCount += 1;
                           } else {
-                            if (rec.clockIn > expTime) lateCount += 1;
+                            if (rec.clockIn > '09:00') lateCount += 1;
                             if (!rec.clockOut || rec.clockOut === '--:--') missingOutCount += 1;
                           }
                         }
@@ -3141,26 +3161,6 @@
         `;
       }
 
-      if (windowState.activeModal === 'taskCompleteModal') {
-        const m = windowState.modalData;
-        return `
-          <div class="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
-            <form onsubmit="handleTaskCompleteSubmit(event)" class="bg-white rounded-3xl max-w-sm w-full p-6 space-y-3">
-              <h3 class="font-bold text-slate-900 text-base">✅ 回報並完成任務</h3>
-              <p class="text-xs text-indigo-900 font-bold">任務：${m.title}</p>
-              <div>
-                <label class="block text-xs text-slate-600 mb-1 font-bold">請輸入實際完成數量與工作回報內容 (必填)</label>
-                <textarea id="task-complete-note-input" rows="3" required placeholder="例: 已製作完成調理包 120 包，真空封口檢測無誤" class="w-full p-2.5 border rounded-xl text-xs">${m.completionNote || ''}</textarea>
-              </div>
-              <div class="flex justify-end gap-2 pt-2">
-                <button type="button" onclick="closeModal()" class="px-4 py-2 text-xs text-slate-600 cursor-pointer">取消</button>
-                <button type="submit" class="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold cursor-pointer">確認送出並完成加分</button>
-              </div>
-            </form>
-          </div>
-        `;
-      }
-
       if (windowState.activeModal === 'vehicleManageModal') {
         const m = windowState.modalData;
         return `
@@ -3448,14 +3448,14 @@
                   ${windowState.employees.map(emp => {
                     const isSel = (m.assignees || []).includes(emp.name);
                     const shiftToday = getStaffShiftOnDate(emp.name, m.date);
-                    const isOff = ['休假', '事假', '病假', '工傷', '陪產', '婚假', '喪假', '特一', '特半'].includes(shiftToday);
+                    const isOff = ['休假', '事假', '病假', '工傷', '陪產', '婚假', '喪假', '特一'].includes(shiftToday);
                     return `
                       <button
                         type="button"
                         onclick="toggleAssigneeInModal('${emp.name}')"
                         class="px-2.5 py-1 rounded-lg text-xs font-bold border ${isSel ? (isOff ? 'bg-rose-600 text-white' : 'bg-indigo-600 text-white') : (isOff ? 'bg-rose-50 text-rose-700' : 'bg-white text-slate-600')}"
                       >
-                        ${isSel ? '✓ ' : '+ '}${emp.name} (${isOff ? `⚠️${shiftToday}` : `☀️${shiftToday}`})
+                        ${isSel ? '✓ ' : '+ '}${emp.name} (${isOff ? `⚠️${shiftToday}` : '☀️上班'})
                       </button>
                     `;
                   }).join('')}
